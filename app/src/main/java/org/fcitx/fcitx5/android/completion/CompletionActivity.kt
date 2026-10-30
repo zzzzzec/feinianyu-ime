@@ -51,6 +51,12 @@ class CompletionActivity : SettingsPageActivity() {
         spinner(content, budgets.map { "$it ms" }, budgets.indexOf(CompletionSettings.budgetMs(this)).coerceAtLeast(0)) {
             CompletionSettings.setBudgetMs(this, budgets[it])
         }
+        with(content) { section(R.string.completion_confidence) }
+        val policies = CompletionConfidence.policies
+        spinner(content, listOf(getString(R.string.completion_conservative), getString(R.string.completion_balanced),
+            getString(R.string.completion_relaxed)), policies.indexOf(CompletionSettings.policy(this))) {
+            CompletionSettings.setPolicy(this, policies[it])
+        }.id = R.id.completion_confidence_selector
         with(content) { section(R.string.completion_try) }
         content.addView(AppCompatEditText(this).apply {
             id = R.id.completion_test_input
@@ -89,14 +95,16 @@ class CompletionActivity : SettingsPageActivity() {
             awaitCancellation()
         } }
     }
-    private fun spinner(parent: LinearLayout, labels: List<String>, selected: Int, changed: (Int) -> Unit) {
-        parent.addView(AppCompatSpinner(this).apply {
+    private fun spinner(parent: LinearLayout, labels: List<String>, selected: Int, changed: (Int) -> Unit): AppCompatSpinner {
+        val control = AppCompatSpinner(this).apply {
             adapter = ArrayAdapter(this@CompletionActivity, android.R.layout.simple_spinner_dropdown_item, labels)
             setSelection(selected)
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) {}
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { changed(position) }
             }
-        }, LinearLayout.LayoutParams(-1, dp(56)).apply { marginStart = dp(16); marginEnd = dp(16) })
+        }
+        parent.addView(control, LinearLayout.LayoutParams(-1, dp(56)).apply { marginStart = dp(16); marginEnd = dp(16) })
+        return control
     }
 }

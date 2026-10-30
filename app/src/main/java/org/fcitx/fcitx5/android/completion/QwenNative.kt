@@ -7,7 +7,8 @@ import androidx.annotation.Keep
 @Keep object QwenNative {
     init { System.loadLibrary("qwen-completion") }
     external fun load(path: String): ByteArray
-    external fun generate(prompt: ByteArray, requestId: Long, maxTokens: Int, budgetMs: Int): ByteArray
+    external fun generate(prompt: ByteArray, requestId: Long, maxTokens: Int, budgetMs: Int,
+        minRoot: Double, minToken: Double, relativeRoot: Double, maxChars: Int, minChars: Int, minSingle: Double): ByteArray
     external fun cancel(requestId: Long)
     external fun reset()
     external fun unload()

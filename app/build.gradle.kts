@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.feinianyu.ime"
-        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.3.1"
+        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.3.2"
         buildConfigField("String", "UPDATE_REPOSITORY", "\"zzzzzec/feinianyu-ime\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

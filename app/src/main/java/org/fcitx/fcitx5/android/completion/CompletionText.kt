@@ -8,8 +8,8 @@ object CompletionText {
         val count = text.codePointCount(0, text.length)
         return if (count <= maxChars) text else text.substring(text.offsetByCodePoints(0, count - maxChars))
     }
-    fun suggestion(raw: String, maxChars: Int = 12): String {
-        val text = raw.substringBefore('\n').substringBefore('\r').substringBefore("<|").trimEnd()
+    fun suggestion(raw: String, maxChars: Int = 8): String {
+        val text = raw.substringBefore('\n').substringBefore('\r').substringBefore("\\n").substringBefore("\\r").substringBefore("<|").trimEnd()
         if (text.isBlank() || text.contains('\uFFFD') || text.any { it.isISOControl() }) return ""
         val count = text.codePointCount(0, text.length).coerceAtMost(maxChars)
         return text.substring(0, text.offsetByCodePoints(0, count))

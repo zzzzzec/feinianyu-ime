@@ -56,19 +56,23 @@ object QwenCompletionEngine {
             }
         }
     }
-    suspend fun generate(context: Context, prompt: String, id: Long, budgetMs: Int): JSONObject {
+    suspend fun generate(context: Context, prompt: String, id: Long, budgetMs: Int,
+        policy: CompletionPolicy = CompletionSettings.policy(context)): JSONObject {
         val enqueuedAt = SystemClock.elapsedRealtime()
         return withContext(worker) {
             val queuedAt = SystemClock.elapsedRealtime()
             val remaining = budgetMs - (queuedAt - enqueuedAt).toInt()
             val result = try {
                 if (remaining <= 0) JSONObject().put("state", "timeout").put("text", "")
-                else JSONObject(QwenNative.generate(prompt.toByteArray(Charsets.UTF_8), id, 8, remaining).toString(Charsets.UTF_8))
+                else JSONObject(QwenNative.generate(prompt.toByteArray(Charsets.UTF_8), id, 8, remaining,
+                    policy.minRoot, policy.minToken, policy.relativeRoot, policy.maxChars, policy.minChars, policy.minSingle).toString(Charsets.UTF_8))
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 JSONObject().put("state", "inference_error").put("text", "").put("error_type", error.javaClass.simpleName)
             }
+            result.put("confidence_policy", policy.name)
             val perf = JSONObject(result.toString()).apply { remove("text"); remove("candidates") }
+                .put("confidence_policy", policy.name)
                 .put("request_id", id).put("phase", "inference").put("context_chars", prompt.codePointCount(0, prompt.length))
                 .put("worker_elapsed_ms", SystemClock.elapsedRealtime() - queuedAt)
                 .put("worker_queue_ms", queuedAt - enqueuedAt)

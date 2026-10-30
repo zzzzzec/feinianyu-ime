@@ -13,6 +13,9 @@ import java.io.File
 
 class QwenCompletionTest {
     private val app get() = InstrumentationRegistry.getInstrumentation().targetContext
+    // Exercise all decoder branches/cache mechanics independently from production confidence gates.
+    private suspend fun generate(prefix: String, id: Long, budgetMs: Int) = QwenCompletionEngine.generate(
+        app, prefix, id, budgetMs, CompletionPolicy("test_permissive", 0.0, 0.0, 0.0, 12, 1))
     @Test fun realBaseModelGeneratesAndCacheIsIsolated(): Unit = runBlocking {
         if (QwenModelStore.readyFile(app) == null) {
             QwenModelStore.installVerified(app, File(app.getExternalFilesDir("completion-downloads"), "qa-model.gguf"))
@@ -31,7 +34,7 @@ class QwenCompletionTest {
         )
         var nonempty = 0
         for (prefix in cases) {
-            val result = QwenCompletionEngine.generate(app, prefix, QwenCompletionEngine.nextId(), 30000)
+            val result = generate(prefix, QwenCompletionEngine.nextId(), 30000)
             val raw = result.getJSONArray("candidates")
             val options = CompletionText.suggestions((0 until raw.length()).map(raw::getString))
             if (options.size == 3) nonempty++
@@ -41,16 +44,16 @@ class QwenCompletionTest {
             outputs.put(JSONObject().put("prefix", prefix).put("suggestions", JSONArray(options)).put("metrics", result))
         }
         assertTrue("Most synthetic prefixes should produce a usable short continuation", nonempty >= 4)
-        val first = QwenCompletionEngine.generate(app, cases[0], QwenCompletionEngine.nextId(), 30000)
-        val repeat = QwenCompletionEngine.generate(app, cases[0], QwenCompletionEngine.nextId(), 30000)
+        val first = generate(cases[0], QwenCompletionEngine.nextId(), 30000)
+        val repeat = generate(cases[0], QwenCompletionEngine.nextId(), 30000)
         assertEquals(first.getJSONArray("candidates").toString(), repeat.getJSONArray("candidates").toString())
         assertEquals(repeat.getInt("prompt_tokens"), repeat.getInt("reused_tokens"))
         val cancelledId = QwenCompletionEngine.nextId()
         QwenCompletionEngine.cancel(cancelledId)
-        assertEquals("cancelled", QwenCompletionEngine.generate(app, cases[0], cancelledId, 30000).getString("state"))
-        assertEquals("timeout", QwenCompletionEngine.generate(app, "不同的长前文".repeat(20), QwenCompletionEngine.nextId(), 1).getString("state"))
+        assertEquals("cancelled", generate(cases[0], cancelledId, 30000).getString("state"))
+        assertEquals("timeout", generate("不同的长前文".repeat(20), QwenCompletionEngine.nextId(), 1).getString("state"))
         QwenNative.reset()
-        val reset = QwenCompletionEngine.generate(app, cases[0], QwenCompletionEngine.nextId(), 30000)
+        val reset = generate(cases[0], QwenCompletionEngine.nextId(), 30000)
         assertEquals(0, reset.getInt("reused_tokens"))
         File(app.filesDir, "qwen-synthetic-results.json").writeText(outputs.toString(2))
         val exported = CompletionPerf.export(app)

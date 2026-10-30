@@ -13,6 +13,11 @@ object CompletionSettings {
     fun setContextChars(context: Context, value: Int) { prefs(context).edit().putInt("context_chars", value.coerceIn(32, 256)).apply() }
     fun budgetMs(context: Context) = prefs(context).getInt("budget_ms", 800).coerceIn(300, 10000)
     fun setBudgetMs(context: Context, value: Int) { prefs(context).edit().putInt("budget_ms", value.coerceIn(300, 10000)).apply() }
+    fun policy(context: Context) = CompletionConfidence.policy(prefs(context).getString("confidence_policy", null))
+    fun setPolicy(context: Context, policy: CompletionPolicy) {
+        require(policy in CompletionConfidence.policies)
+        prefs(context).edit().putString("confidence_policy", policy.name).apply()
+    }
     fun register(context: Context, listener: android.content.SharedPreferences.OnSharedPreferenceChangeListener) {
         if (unlocked(context)) prefs(context).registerOnSharedPreferenceChangeListener(listener)
     }

@@ -24,4 +24,11 @@ class CompletionTextTest {
             "休息吧，\n另一段", "休息吧，", "\uFFFD", "睡个好觉。", "明天见。", "第四个")))
         assertEquals(listOf(" status", " diff"), CompletionText.suggestions(listOf(" status ", " diff")))
     }
+    @Test fun escapedParagraphsAndLongOutputsStayOutOfShortCompletions() {
+        assertEquals("", CompletionText.suggestion("\\n\\n另一段"))
+        assertEquals("你好", CompletionText.suggestion("你好\\n下一段"))
+        assertEquals("一二三四五六七八", CompletionText.suggestion("一二三四五六七八九十"))
+        assertEquals(emptyList<String>(), CompletionText.suggestions(listOf("\\n", "\n", "")))
+        assertEquals(listOf("好"), CompletionText.suggestions(listOf("好"))) // Native confidence controls single-character offers.
+    }
 }

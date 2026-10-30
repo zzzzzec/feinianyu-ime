@@ -9,6 +9,8 @@ import android.text.InputType
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import androidx.appcompat.widget.AppCompatSpinner
+import androidx.core.widget.NestedScrollView
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
 import org.fcitx.fcitx5.android.completion.*
@@ -16,6 +18,7 @@ import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesMode
 import org.junit.Assert.*
 import org.junit.Test
+import org.json.JSONObject
 import java.io.File
 
 /** Start with another IME selected; this test selects our IME after instrumentation starts. */
@@ -25,7 +28,9 @@ class QwenCompletionUiTest {
         val app = instrumentation.targetContext
         val oldBudget = CompletionSettings.budgetMs(app)
         val oldEnabled = CompletionSettings.enabled(app)
+        val oldPolicy = CompletionSettings.policy(app)
         CompletionSettings.setEnabled(app, true)
+        CompletionSettings.setPolicy(app, CompletionConfidence.policies.last())
         val floatingMode = AppPrefs.getInstance().candidates.mode
         val oldMode = floatingMode.getValue()
         floatingMode.setValue(FloatingCandidatesMode.Disabled)
@@ -54,10 +59,16 @@ class QwenCompletionUiTest {
         fun type(prefix: String) = instrumentation.runOnMainSync {
             editor.requestFocus(); editor.setText(prefix); editor.setSelection(prefix.length)
             activity.getSystemService(InputMethodManager::class.java).showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT)
+            activity.findViewById<NestedScrollView>(R.id.scroll).scrollTo(0,
+                (editor.top - 100 * app.resources.displayMetrics.density).toInt().coerceAtLeast(0))
+        }
+        fun conservative() = instrumentation.runOnMainSync {
+            activity.findViewById<AppCompatSpinner>(R.id.completion_confidence_selector).setSelection(0)
+            CompletionSettings.setPolicy(app, CompletionConfidence.policies.first())
         }
         try {
             delay(1000)
-            val prefix = "今天辛苦了，早点"
+            val prefix = "这份文件我看过了，有几个地方需要"
             type(prefix)
             waitForCandidate()
             assertTrue("Completion items belong to the original horizontal candidate RecyclerView", candidates().all { node ->
@@ -74,12 +85,14 @@ class QwenCompletionUiTest {
                 checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
             }
             val seen = candidates().map(::candidateText).toMutableSet()
-            if (seen.size < 3) {
-                assertTrue("Original expand button exposes the remaining completions", checkNotNull(expandButton()).performAction(AccessibilityNodeInfo.ACTION_CLICK))
-                withTimeout(5000) { while ((seen + candidates().map(::candidateText)).size < 3) delay(50) }
+            val expand = expandButton()
+            if (expand != null) {
+                assertTrue(expand.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                withTimeout(5000) { while (candidates().none { node -> generateSequence(node) { it.parent }
+                    .any { it.viewIdResourceName == "${app.packageName}:id/expanded_candidate_view" } }) delay(50) }
                 seen.addAll(candidates().map(::candidateText))
             }
-            assertEquals("Three distinct options in the original candidate UI", 3, seen.size)
+            assertTrue("Only eligible choices are shown, with no fixed minimum count", seen.size in 1..3)
             val selected = candidates().getOrElse(1) { candidates().last() }
             val text = candidateText(selected)
             assertTrue(selected.performAction(AccessibilityNodeInfo.ACTION_CLICK))
@@ -88,45 +101,49 @@ class QwenCompletionUiTest {
             File(app.filesDir, "qwen-ui-accepted.png").outputStream().use {
                 checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
             }
-            // Narrow the original candidate bar so the third choice must use its normal expand UI.
-            val sidePadding = AppPrefs.getInstance().keyboard.keyboardSidePadding
-            val previousSidePadding = sidePadding.getValue()
-            try {
-                sidePadding.setValue(80)
-                type(prefix)
-                waitForCandidate()
-                assertTrue(checkNotNull(expandButton()).performAction(AccessibilityNodeInfo.ACTION_CLICK))
-                fun thirdInExpanded(): AccessibilityNodeInfo? = candidates().firstOrNull { node ->
-                    candidateText(node) == seen.last() && generateSequence(node) { it.parent }
-                        .any { it.viewIdResourceName == "${app.packageName}:id/expanded_candidate_view" }
+            conservative()
+            val strong = "春眠不觉晓，"
+            type(strong)
+            val single = waitForCandidate()
+            assertEquals(1, candidates().size)
+            assertEquals("处处闻啼鸟。", candidateText(single))
+            File(app.filesDir, "qwen-ui-confidence-single.png").outputStream().use {
+                checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            assertTrue(single.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            delay(200)
+            instrumentation.runOnMainSync { assertEquals(strong + "处处闻啼鸟。", editor.text.toString()) }
+            val abstainStart = System.currentTimeMillis()
+            type("明月松间照，")
+            withTimeout(10000) {
+                while (true) {
+                    val records = JSONObject(CompletionPerf.export(app)).getJSONArray("records")
+                    if ((0 until records.length()).any { index -> records.getJSONObject(index).let {
+                        it.optString("phase") == "ui" && it.optString("state") == "abstained" && it.optLong("wall_time_ms") >= abstainStart
+                    } }) break
+                    delay(100)
                 }
-                withTimeout(8000) { while (thirdInExpanded() == null) delay(50) }
-                delay(150) // Wait for the original window transition before capturing its layout.
-                File(app.filesDir, "qwen-ui-expanded.png").outputStream().use {
-                    checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
-                }
-                val expanded = checkNotNull(thirdInExpanded())
-                val expandedText = candidateText(expanded)
-                assertTrue(expanded.performAction(AccessibilityNodeInfo.ACTION_CLICK))
-                delay(200)
-                instrumentation.runOnMainSync { assertEquals(prefix + expandedText, editor.text.toString()) }
-            } finally { sidePadding.setValue(previousSidePadding) }
-            type("这份文件我看过了，有几个地方需要")
+            }
+            assertNull("Low confidence must really finish without any visible suggestion", candidate())
+            File(app.filesDir, "qwen-ui-confidence-abstain.png").outputStream().use {
+                checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            type(strong)
             val stale = waitForCandidate()
             instrumentation.runOnMainSync { editor.setSelection(0) }
             delay(250)
             stale.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             delay(100)
-            instrumentation.runOnMainSync { assertEquals("这份文件我看过了，有几个地方需要", editor.text.toString()) }
+            instrumentation.runOnMainSync { assertEquals(strong, editor.text.toString()) }
             assertNull(candidate())
-            type("今天辛苦了，早点")
+            type(strong)
             val disabled = waitForCandidate()
             CompletionSettings.setEnabled(app, false)
             delay(250)
             assertNull("Switching off hides the existing suggestion", candidate())
             disabled.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             delay(100)
-            instrumentation.runOnMainSync { assertEquals("今天辛苦了，早点", editor.text.toString()) }
+            instrumentation.runOnMainSync { assertEquals(strong, editor.text.toString()) }
             CompletionSettings.setEnabled(app, true)
             instrumentation.runOnMainSync {
                 editor.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -162,6 +179,7 @@ class QwenCompletionUiTest {
         } finally {
             CompletionSettings.setBudgetMs(app, oldBudget)
             CompletionSettings.setEnabled(app, oldEnabled)
+            CompletionSettings.setPolicy(app, oldPolicy)
             floatingMode.setValue(oldMode)
             instrumentation.runOnMainSync { activity.finish() }
         }

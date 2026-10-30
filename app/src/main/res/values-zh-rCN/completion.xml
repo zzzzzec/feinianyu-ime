@@ -9,6 +9,10 @@
     <string name="completion_model_missing">模型尚未下载 · 约 505 MiB</string>
     <string name="completion_context">前文长度</string>
     <string name="completion_budget">响应时限</string>
+    <string name="completion_confidence">建议强度</string>
+    <string name="completion_conservative">保守</string>
+    <string name="completion_balanced">均衡</string>
+    <string name="completion_relaxed">宽松</string>
     <string name="completion_try">试一试</string>
     <string name="completion_try_hint">输入一段文字，停下后查看补全</string>
     <string name="completion_perf">性能记录</string>
