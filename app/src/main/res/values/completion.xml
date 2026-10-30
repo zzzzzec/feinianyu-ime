@@ -13,8 +13,6 @@
     <string name="completion_try_hint">Type some text, then pause</string>
     <string name="completion_perf">Performance records</string>
     <string name="completion_export">Export performance records</string>
-    <string name="completion_accept">Accept completion: %1$s</string>
-    <string name="completion_dismiss">Dismiss completion</string>
     <item name="completion_suggestion" type="id" />
     <item name="completion_test_input" type="id" />
 </resources>

@@ -14,16 +14,13 @@ import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsResponse
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.view.Gravity
 import android.view.ViewTreeObserver
-import android.text.TextUtils
 import org.fcitx.fcitx5.android.R
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.core.CapabilityFlags
+import org.fcitx.fcitx5.android.core.CandidateWord
 import org.fcitx.fcitx5.android.core.FcitxEvent
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.launchOnReady
@@ -37,6 +34,8 @@ import org.fcitx.fcitx5.android.input.broadcast.PreeditEmptyStateComponent
 import org.fcitx.fcitx5.android.input.broadcast.PunctuationComponent
 import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateComponent
+import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
+import org.fcitx.fcitx5.android.input.candidates.expanded.window.BaseExpandedCandidateWindow
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardHeightPercentBase.DisplayMetrics
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardHeightPercentBase.RealSize
@@ -113,40 +112,58 @@ class InputView(
     private val kawaiiBar = KawaiiBarComponent()
     private val horizontalCandidate = HorizontalCandidateComponent()
     private val keyboardWindow = KeyboardWindow()
-    private val completionText = TextView(service).apply {
-        id = R.id.completion_suggestion
-        gravity = Gravity.CENTER_VERTICAL
-        textSize = AppPrefs.getInstance().keyboard.candidateFontSize.getValue().toFloat()
-        setTextColor(theme.candidateTextColor)
-        setPadding(dp(16), 0, dp(8), 0)
-        maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-        setOnClickListener { service.acceptCompletion() }
-    }
-    private val completionUi = LinearLayout(service).apply {
-        orientation = LinearLayout.HORIZONTAL
-        visibility = GONE
-        setBackgroundColor(theme.barColor)
-        addView(completionText, LinearLayout.LayoutParams(0, -1, 1f))
-        addView(TextView(service).apply {
-            text = "×"; textSize = 24f; gravity = Gravity.CENTER
-            setTextColor(theme.candidateCommentColor)
-            contentDescription = service.getString(R.string.completion_dismiss)
-            setOnClickListener { service.cancelCompletion() }
-        }, LinearLayout.LayoutParams(dp(48), -1))
-    }
+    private var nativeCandidates = FcitxEvent.CandidateListEvent.Data()
+    private var completionCandidates: Array<CandidateWord>? = null
+    private var candidateVersion = 0L
     private var completionVersion = 0L
-    val completionAvailable get() = isShown && windowManager.isAttached(keyboardWindow)
-    fun showCompletion(text: String?, onShown: (() -> Boolean)?): Boolean {
+    val hasCompletionCandidates get() = completionCandidates != null
+    fun completionCandidatesSnapshot(): Array<CandidateWord>? = completionCandidates?.copyOf()
+    val completionAvailable get() = isShown && (windowManager.isAttached(keyboardWindow) ||
+        windowManager.attachedWindow is BaseExpandedCandidateWindow<*>)
+
+    private fun renderCandidates(data: FcitxEvent.CandidateListEvent.Data) {
+        candidateVersion++
+        broadcaster.onCandidateUpdate(data)
+    }
+
+    /** Both sources use the original candidate item, divider, sizing and expand window. */
+    fun bindCandidateActions(holder: CandidateViewHolder) {
+        val version = candidateVersion
+        val index = holder.idx
+        val candidate = holder.candidate
+        val external = hasCompletionCandidates
+        holder.itemView.id = if (external) R.id.completion_suggestion else NO_ID
+        holder.itemView.contentDescription = if (external) candidate.text else null
+        holder.itemView.setOnClickListener {
+            if (version != candidateVersion) return@setOnClickListener
+            if (external) {
+                if (completionCandidates?.getOrNull(index) == candidate) service.acceptCompletion(index)
+            } else fcitx.launchOnReady { it.select(index) }
+        }
+        holder.itemView.setOnLongClickListener(if (external) null else OnLongClickListener {
+            if (version != candidateVersion) return@OnLongClickListener false
+            showCandidateActionMenu(index, candidate.text, holder.ui.root)
+            true
+        })
+    }
+
+    fun showCompletion(texts: List<String>?, onShown: (() -> Boolean)?): Boolean {
         val version = ++completionVersion
-        if (text == null || !completionAvailable) { completionUi.visibility = GONE; return false }
-        completionText.text = text
-        completionText.contentDescription = service.getString(R.string.completion_accept, text)
-        completionUi.visibility = VISIBLE
-        completionUi.bringToFront()
-        completionUi.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+        if (texts.isNullOrEmpty() || !completionAvailable) {
+            if (completionCandidates != null) {
+                completionCandidates = null
+                renderCandidates(nativeCandidates)
+                if (windowManager.attachedWindow is BaseExpandedCandidateWindow<*>) windowManager.attachWindow(keyboardWindow)
+            }
+            return false
+        }
+        completionCandidates = texts.map { CandidateWord("", it, "") }.toTypedArray()
+        renderCandidates(FcitxEvent.CandidateListEvent.Data(texts.size, completionCandidates!!))
+        val candidates = horizontalCandidate.view
+        candidates.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
-                if (completionUi.viewTreeObserver.isAlive) completionUi.viewTreeObserver.removeOnPreDrawListener(this)
-                if (version == completionVersion && onShown?.invoke() == false) completionUi.visibility = GONE
+                if (candidates.viewTreeObserver.isAlive) candidates.viewTreeObserver.removeOnPreDrawListener(this)
+                if (version == completionVersion && onShown?.invoke() == false) showCompletion(null, null)
                 return true
             }
         })
@@ -251,7 +268,9 @@ class InputView(
     init {
         // MUST call before any operation
         setupScope()
-        windowManager.onWindowChanged = { service.cancelCompletion() }
+        windowManager.onWindowChanged = { target ->
+            if (target !== keyboardWindow && target !is BaseExpandedCandidateWindow<*>) service.cancelCompletion()
+        }
 
         // restore punctuation mapping in case of InputView recreation
         fcitx.launchOnReady {
@@ -280,10 +299,6 @@ class InputView(
                 centerHorizontally()
             })
             add(kawaiiBar.view, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
-                topOfParent()
-                centerHorizontally()
-            })
-            add(completionUi, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
                 topOfParent()
                 centerHorizontally()
             })
@@ -402,7 +417,10 @@ class InputView(
     override fun handleFcitxEvent(it: FcitxEvent<*>) {
         when (it) {
             is FcitxEvent.CandidateListEvent -> {
-                broadcaster.onCandidateUpdate(it.data)
+                nativeCandidates = it.data
+                if (hasCompletionCandidates) {
+                    if (it.data.candidates.isNotEmpty()) service.cancelCompletion()
+                } else renderCandidates(it.data)
             }
             is FcitxEvent.ClientPreeditEvent -> {
                 preeditEmptyState.updatePreeditEmptyState(clientPreedit = it.data)

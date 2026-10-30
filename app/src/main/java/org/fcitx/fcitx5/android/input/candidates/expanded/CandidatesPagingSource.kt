@@ -10,7 +10,8 @@ import org.fcitx.fcitx5.android.core.CandidateWord
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import timber.log.Timber
 
-class CandidatesPagingSource(val fcitx: FcitxConnection, val total: Int, val offset: Int) :
+class CandidatesPagingSource(val fcitx: FcitxConnection, val total: Int, val offset: Int,
+    private val suppliedCandidates: Array<CandidateWord>? = null) :
     PagingSource<Int, CandidateWord>() {
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, CandidateWord> {
@@ -18,7 +19,7 @@ class CandidatesPagingSource(val fcitx: FcitxConnection, val total: Int, val off
         val startIndex = params.key ?: offset
         val pageSize = params.loadSize
         Timber.d("getCandidates(offset=$startIndex, limit=$pageSize)")
-        val candidates = fcitx.runOnReady {
+        val candidates = suppliedCandidates?.drop(startIndex)?.take(pageSize)?.toTypedArray() ?: fcitx.runOnReady {
             getCandidates(startIndex, pageSize)
         }
         val prevKey = if (startIndex >= pageSize) startIndex - pageSize else null

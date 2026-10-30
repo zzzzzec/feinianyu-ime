@@ -135,7 +135,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }.getOrNull()
     }
     fun cancelCompletion() { completion.invalidate() }
-    fun acceptCompletion() = completion.accept()
+    fun acceptCompletion(index: Int) = completion.accept(index)
     private fun commitCompletion(text: String) { commitText(text) }
     private val completionPreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
         lifecycleScope.launch {

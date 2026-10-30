@@ -19,4 +19,9 @@ class CompletionTextTest {
         assertEquals("一😀二", CompletionText.suggestion("一😀二三四", 3))
         assertEquals(" status", CompletionText.suggestion(" status "))
     }
+    @Test fun multipleOptionsAreSanitizedDeduplicatedAndBounded() {
+        assertEquals(listOf("休息吧，", "睡个好觉。", "明天见。"), CompletionText.suggestions(listOf(
+            "休息吧，\n另一段", "休息吧，", "\uFFFD", "睡个好觉。", "明天见。", "第四个")))
+        assertEquals(listOf(" status", " diff"), CompletionText.suggestions(listOf(" status ", " diff")))
+    }
 }

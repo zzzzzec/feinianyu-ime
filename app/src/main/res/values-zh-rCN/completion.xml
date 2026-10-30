@@ -13,6 +13,4 @@
     <string name="completion_try_hint">输入一段文字，停下后查看补全</string>
     <string name="completion_perf">性能记录</string>
     <string name="completion_export">导出性能记录</string>
-    <string name="completion_accept">采用续写：%1$s</string>
-    <string name="completion_dismiss">关闭续写建议</string>
 </resources>

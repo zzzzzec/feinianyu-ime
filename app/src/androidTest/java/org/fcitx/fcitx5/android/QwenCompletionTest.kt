@@ -32,16 +32,18 @@ class QwenCompletionTest {
         var nonempty = 0
         for (prefix in cases) {
             val result = QwenCompletionEngine.generate(app, prefix, QwenCompletionEngine.nextId(), 30000)
-            val text = CompletionText.suggestion(result.optString("text"))
-            if (text.isNotEmpty()) nonempty++
+            val raw = result.getJSONArray("candidates")
+            val options = CompletionText.suggestions((0 until raw.length()).map(raw::getString))
+            if (options.size == 3) nonempty++
             assertEquals(result.toString(), "generated", result.getString("state"))
-            assertFalse(text.contains("<|"))
-            outputs.put(JSONObject().put("prefix", prefix).put("suggestion", text).put("metrics", result))
+            assertEquals(result.toString(), 3, options.size)
+            options.forEach { assertFalse(it.contains("<|")) }
+            outputs.put(JSONObject().put("prefix", prefix).put("suggestions", JSONArray(options)).put("metrics", result))
         }
         assertTrue("Most synthetic prefixes should produce a usable short continuation", nonempty >= 4)
         val first = QwenCompletionEngine.generate(app, cases[0], QwenCompletionEngine.nextId(), 30000)
         val repeat = QwenCompletionEngine.generate(app, cases[0], QwenCompletionEngine.nextId(), 30000)
-        assertEquals(first.getString("text"), repeat.getString("text"))
+        assertEquals(first.getJSONArray("candidates").toString(), repeat.getJSONArray("candidates").toString())
         assertEquals(repeat.getInt("prompt_tokens"), repeat.getInt("reused_tokens"))
         val cancelledId = QwenCompletionEngine.nextId()
         QwenCompletionEngine.cancel(cancelledId)
@@ -53,6 +55,9 @@ class QwenCompletionTest {
         File(app.filesDir, "qwen-synthetic-results.json").writeText(outputs.toString(2))
         val exported = CompletionPerf.export(app)
         assertFalse(exported.contains(cases[0]))
+        outputs.getJSONObject(0).getJSONArray("suggestions").let { options ->
+            for (index in 0 until options.length()) assertFalse("Performance records must not contain any option text", exported.contains(options.getString(index)))
+        }
         File(app.filesDir, "qwen-perf-export.json").writeText(exported)
     }
     @Test fun builtinPinyinPredictionIsOffAndCannotBeReenabled(): Unit = runBlocking {

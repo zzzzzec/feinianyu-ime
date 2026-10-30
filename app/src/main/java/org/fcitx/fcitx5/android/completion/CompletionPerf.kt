@@ -55,6 +55,7 @@ object CompletionPerf {
         JSONObject().put("schema", 1).put("app_version", BuildConfig.VERSION_NAME)
             .put("build_commit", BuildConfig.BUILD_GIT_HASH)
             .put("runtime", "llama.cpp-b11632").put("threads", 2)
+            .put("candidate_limit", CompletionText.MAX_SUGGESTIONS).put("generation", "diverse-root-batched-greedy-v1")
             .put("model_id", QwenModelStore.ID).put("model_sha256", QwenModelStore.SHA256)
             .put("device", JSONObject().put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL)
                 .put("sdk", Build.VERSION.SDK_INT).put("abi", Build.SUPPORTED_ABIS.firstOrNull())

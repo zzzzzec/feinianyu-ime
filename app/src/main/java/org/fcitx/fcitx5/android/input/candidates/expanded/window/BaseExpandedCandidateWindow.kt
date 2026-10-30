@@ -142,7 +142,8 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
                 CandidatesPagingSource(
                     fcitx,
                     total = horizontalCandidate.adapter.total,
-                    offset = adapter.offset
+                    offset = adapter.offset,
+                    suppliedCandidates = inputView.completionCandidatesSnapshot()
                 )
             }
         )
@@ -159,7 +160,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
             it.keyActionListener = keyActionListener
         }
-        updateTabs(fcitx.runImmediately { inputPanelCached.tabs })
+        updateTabs(if (inputView.hasCompletionCandidates) emptyArray() else fcitx.runImmediately { inputPanelCached.tabs })
         offsetJob = service.lifecycleScope.launch {
             horizontalCandidate.expandedCandidateOffset.collect {
                 if (it <= 0) {
@@ -178,13 +179,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
     }
 
     fun bindCandidateUiViewHolder(holder: CandidateViewHolder) {
-        holder.itemView.setOnClickListener {
-            fcitx.launchOnReady { it.select(holder.idx) }
-        }
-        holder.itemView.setOnLongClickListener {
-            inputView.showCandidateActionMenu(holder.idx, holder.candidate.text, holder.ui.root)
-            true
-        }
+        inputView.bindCandidateActions(holder)
     }
 
     fun recycleCandidateViewHolder(holder: CandidateViewHolder) {
@@ -203,13 +198,13 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
     }
 
     override fun onPreeditEmptyStateUpdate(empty: Boolean) {
-        if (empty) {
+        if (empty && !inputView.hasCompletionCandidates) {
             windowManager.attachWindow(KeyboardWindow)
         }
     }
 
     override fun onInputPanelUpdate(data: FcitxEvent.InputPanelEvent.Data) {
-        updateTabs(data.tabs)
+        updateTabs(if (inputView.hasCompletionCandidates) emptyArray() else data.tabs)
     }
 
 }

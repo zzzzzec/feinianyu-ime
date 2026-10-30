@@ -63,15 +63,16 @@ object QwenCompletionEngine {
             val remaining = budgetMs - (queuedAt - enqueuedAt).toInt()
             val result = try {
                 if (remaining <= 0) JSONObject().put("state", "timeout").put("text", "")
-                else JSONObject(QwenNative.generate(prompt.toByteArray(Charsets.UTF_8), id, 16, remaining).toString(Charsets.UTF_8))
+                else JSONObject(QwenNative.generate(prompt.toByteArray(Charsets.UTF_8), id, 8, remaining).toString(Charsets.UTF_8))
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 JSONObject().put("state", "inference_error").put("text", "").put("error_type", error.javaClass.simpleName)
             }
-            val perf = JSONObject(result.toString()).apply { remove("text") }
+            val perf = JSONObject(result.toString()).apply { remove("text"); remove("candidates") }
                 .put("request_id", id).put("phase", "inference").put("context_chars", prompt.codePointCount(0, prompt.length))
                 .put("worker_elapsed_ms", SystemClock.elapsedRealtime() - queuedAt)
                 .put("worker_queue_ms", queuedAt - enqueuedAt)
+                .put("request_budget_ms", budgetMs).put("native_budget_ms", remaining)
             CompletionPerf.record(context.applicationContext, perf)
             result
         }

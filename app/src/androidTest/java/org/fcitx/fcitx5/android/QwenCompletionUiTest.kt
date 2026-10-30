@@ -39,9 +39,14 @@ class QwenCompletionUiTest {
         }
         val activity = instrumentation.startActivitySync(Intent(app, CompletionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         val editor = activity.findViewById<EditText>(R.id.completion_test_input)
-        fun candidate(): AccessibilityNodeInfo? = automation.windows.asSequence().mapNotNull { it.root }
+        fun candidates(): List<AccessibilityNodeInfo> = automation.windows.asSequence().mapNotNull { it.root }
             .flatMap { it.findAccessibilityNodeInfosByViewId("${app.packageName}:id/completion_suggestion").asSequence() }
-            .firstOrNull { it.isVisibleToUser && !it.text.isNullOrBlank() }
+            .filter { it.isVisibleToUser && !it.contentDescription.isNullOrBlank() }.toList()
+        fun candidate() = candidates().firstOrNull()
+        fun candidateText(node: AccessibilityNodeInfo) = node.contentDescription.toString()
+        fun expandButton(): AccessibilityNodeInfo? = automation.windows.asSequence().mapNotNull { it.root }
+            .flatMap { it.findAccessibilityNodeInfosByViewId("${app.packageName}:id/expand_candidate_btn").asSequence() }
+            .firstOrNull { it.isVisibleToUser && it.isEnabled && it.isClickable }
         suspend fun waitForCandidate(): AccessibilityNodeInfo {
             withTimeout(15000) { while (candidate() == null) delay(50) }
             return checkNotNull(candidate())
@@ -54,8 +59,10 @@ class QwenCompletionUiTest {
             delay(1000)
             val prefix = "今天辛苦了，早点"
             type(prefix)
-            val first = waitForCandidate()
-            val text = first.text.toString()
+            waitForCandidate()
+            assertTrue("Completion items belong to the original horizontal candidate RecyclerView", candidates().all { node ->
+                generateSequence(node) { it.parent }.any { it.viewIdResourceName == "${app.packageName}:id/candidate_view" }
+            })
             instrumentation.runOnMainSync {
                 val toolbar = activity.findViewById<android.view.View>(R.id.toolbar)
                 val location = IntArray(2).also(toolbar::getLocationOnScreen)
@@ -66,12 +73,44 @@ class QwenCompletionUiTest {
             File(app.filesDir, "qwen-ui-candidate.png").outputStream().use {
                 checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
             }
-            assertTrue(first.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            val seen = candidates().map(::candidateText).toMutableSet()
+            if (seen.size < 3) {
+                assertTrue("Original expand button exposes the remaining completions", checkNotNull(expandButton()).performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                withTimeout(5000) { while ((seen + candidates().map(::candidateText)).size < 3) delay(50) }
+                seen.addAll(candidates().map(::candidateText))
+            }
+            assertEquals("Three distinct options in the original candidate UI", 3, seen.size)
+            val selected = candidates().getOrElse(1) { candidates().last() }
+            val text = candidateText(selected)
+            assertTrue(selected.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             delay(200)
             instrumentation.runOnMainSync { assertEquals(prefix + text, editor.text.toString()) }
             File(app.filesDir, "qwen-ui-accepted.png").outputStream().use {
                 checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
             }
+            // Narrow the original candidate bar so the third choice must use its normal expand UI.
+            val sidePadding = AppPrefs.getInstance().keyboard.keyboardSidePadding
+            val previousSidePadding = sidePadding.getValue()
+            try {
+                sidePadding.setValue(80)
+                type(prefix)
+                waitForCandidate()
+                assertTrue(checkNotNull(expandButton()).performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                fun thirdInExpanded(): AccessibilityNodeInfo? = candidates().firstOrNull { node ->
+                    candidateText(node) == seen.last() && generateSequence(node) { it.parent }
+                        .any { it.viewIdResourceName == "${app.packageName}:id/expanded_candidate_view" }
+                }
+                withTimeout(8000) { while (thirdInExpanded() == null) delay(50) }
+                delay(150) // Wait for the original window transition before capturing its layout.
+                File(app.filesDir, "qwen-ui-expanded.png").outputStream().use {
+                    checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                val expanded = checkNotNull(thirdInExpanded())
+                val expandedText = candidateText(expanded)
+                assertTrue(expanded.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                delay(200)
+                instrumentation.runOnMainSync { assertEquals(prefix + expandedText, editor.text.toString()) }
+            } finally { sidePadding.setValue(previousSidePadding) }
             type("这份文件我看过了，有几个地方需要")
             val stale = waitForCandidate()
             instrumentation.runOnMainSync { editor.setSelection(0) }
@@ -96,6 +135,29 @@ class QwenCompletionUiTest {
             type("只用于测试的密码文本")
             delay(1000)
             assertNull("No completion in password fields", candidate())
+            // Ordinary pinyin candidates still use the native select path after Qwen suggestions.
+            instrumentation.runOnMainSync {
+                editor.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                activity.getSystemService(InputMethodManager::class.java).restartInput(editor)
+            }
+            delay(200)
+            type("")
+            for (key in "nihao") { instrumentation.sendStringSync(key.toString()); delay(100) }
+            fun nativeCandidate(): AccessibilityNodeInfo? = automation.windows.asSequence().mapNotNull { it.root }
+                .flatMap { it.findAccessibilityNodeInfosByViewId("${app.packageName}:id/candidate_view").asSequence() }
+                .filter { it.isVisibleToUser }.flatMap { bar -> (0 until bar.childCount).mapNotNull(bar::getChild).asSequence() }
+                .firstOrNull { it.isVisibleToUser && it.isClickable && it.viewIdResourceName != "${app.packageName}:id/completion_suggestion" }
+            withTimeout(8000) { while (nativeCandidate() == null) delay(50) }
+            delay(100)
+            File(app.filesDir, "qwen-ui-native-pinyin.png").outputStream().use {
+                checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            assertTrue(checkNotNull(nativeCandidate()).performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            var committed = false
+            withTimeout(5000) { while (!committed) {
+                instrumentation.runOnMainSync { committed = editor.text.any { it in '\u3400'..'\u9fff' } }
+                delay(50)
+            } }
             File(app.filesDir, "qwen-ui-perf-export.json").writeText(CompletionPerf.export(app))
         } finally {
             CompletionSettings.setBudgetMs(app, oldBudget)

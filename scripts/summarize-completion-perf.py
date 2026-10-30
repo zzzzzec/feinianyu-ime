@@ -34,6 +34,9 @@ def summarize(data):
         "inference_outcomes": dict(Counter(r.get("state") for r in inference)),
         "ui_outcomes": dict(Counter(r.get("state") for r in records if r.get("phase") == "ui")),
         "shown_count": len(shown),
+        "candidate_counts": dict(Counter(str(r.get("candidate_count", 1)) for r in generated)),
+        "selected_indices": dict(Counter(str(r.get("selected_index", 0)) for r in records if r.get("phase") == "accept")),
+        "ui_budgets_ms": sorted(set(r["budget_ms"] for r in records if r.get("phase") == "ui" and "budget_ms" in r)),
         "metrics": {},
         "note": "Timing percentiles below describe generated/shown samples only; all timeout/cancel counts are reported separately. Emulator results are not phone performance.",
     }

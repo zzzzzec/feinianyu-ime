@@ -3,6 +3,7 @@ package org.fcitx.fcitx5.android.completion
 
 /** Unicode code points, not UTF-16 code units. Never join separate editors or messages. */
 object CompletionText {
+    const val MAX_SUGGESTIONS = 3
     fun suffix(text: String, maxChars: Int): String {
         val count = text.codePointCount(0, text.length)
         return if (count <= maxChars) text else text.substring(text.offsetByCodePoints(0, count - maxChars))
@@ -13,4 +14,6 @@ object CompletionText {
         val count = text.codePointCount(0, text.length).coerceAtMost(maxChars)
         return text.substring(0, text.offsetByCodePoints(0, count))
     }
+    fun suggestions(raw: List<String>): List<String> = raw.asSequence()
+        .map { suggestion(it) }.filter { it.isNotBlank() }.distinct().take(MAX_SUGGESTIONS).toList()
 }

@@ -2,13 +2,13 @@
 
 基于 Fcitx5 Android 的中文输入法，使用 Suzu 重排拼音候选，并支持 Qwen 上屏后短语补全。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.0.md) · [智能续写](docs/qwen-completion.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.1.md) · [智能续写](docs/qwen-completion.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 
 - 中文拼音、英文、数字、符号、剪贴板历史和文本编辑，保留 Fcitx5 原有输入能力。
 - 内置约 44 MB 的 Suzu-2.4 Q8_0。模型在本机运行，只重排已有候选，不生成新候选。
-- Qwen3.5-0.8B-Base 根据已上屏前文生成短语补全，替换原有拼音联想。模型独立下载，覆盖升级后复用；性能记录可导出。
+- Qwen3.5-0.8B-Base 根据已上屏前文生成 3 条短续写，使用原有候选栏和展开面板，替换原有拼音联想。模型独立下载，覆盖升级后复用；性能记录可导出。
 - Gboard 风格浅色主题；键盘字体和候选字体可分别调整。
 - 从本仓库 Release 自动检查和下载更新，更新页面显示中文 changelog；安装由 Android 系统确认。
 - 固定包名 `dev.feinianyu.ime`，同一签名覆盖升级；配置按版本迁移，并在修改前保留快照。
