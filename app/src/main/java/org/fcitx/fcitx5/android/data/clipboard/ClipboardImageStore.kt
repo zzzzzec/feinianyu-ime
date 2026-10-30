@@ -97,13 +97,22 @@ class ClipboardImageStore(private val context: Context, private val directory: F
 
     suspend fun thumbnail(name: String): Bitmap? = withContext(Dispatchers.IO) {
         thumbnails.get(name)?.let { return@withContext it }
+        decode(name, 768, 2048, 1_048_576)?.also { thumbnails.put(name, it) }
+    }
+
+    suspend fun preview(name: String, width: Int): Bitmap? = withContext(Dispatchers.IO) {
+        decode(name, width.coerceIn(256, 1536), 8192, 4_194_304)
+    }
+
+    private fun decode(name: String, widthLimit: Int, heightLimit: Int, pixelLimit: Int): Bitmap? {
         val path = file(name).absolutePath
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         val options = BitmapFactory.Options().apply {
             inSampleSize = 1
-            while (maxOf(bounds.outWidth, bounds.outHeight) / inSampleSize > 512) inSampleSize *= 2
+            while (bounds.outWidth / inSampleSize > widthLimit || bounds.outHeight / inSampleSize > heightLimit ||
+                (bounds.outWidth / inSampleSize).toLong() * (bounds.outHeight / inSampleSize) > pixelLimit) inSampleSize *= 2
         }
         val bitmap = if (Build.VERSION.SDK_INT >= 28) {
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(File(path))) { decoder, _, _ ->
@@ -123,7 +132,7 @@ class ClipboardImageStore(private val context: Context, private val directory: F
             }
             if (matrix.isIdentity) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         }
-        bitmap?.also { thumbnails.put(name, it) }
+        return bitmap
     }
 
     fun cleanUp(retained: Set<String>) {

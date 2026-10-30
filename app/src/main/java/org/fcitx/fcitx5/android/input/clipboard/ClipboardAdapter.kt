@@ -111,6 +111,9 @@ abstract class ClipboardAdapter(
                     }
                 }
                 if (entry.isImage) {
+                    menu.item(R.string.clipboard_image_preview, R.drawable.ic_baseline_search_24, iconTint) {
+                        onPreview(entry)
+                    }
                     menu.item(R.string.clipboard_image_copy, R.drawable.ic_baseline_content_copy_24, iconTint) {
                         runCatching { ClipboardContent.copy(ctx, entry) }
                             .onSuccess { ctx.toast(R.string.clipboard_image_copied) }
@@ -149,6 +152,8 @@ abstract class ClipboardAdapter(
     }
 
     abstract fun onPaste(entry: ClipboardEntry)
+
+    abstract fun onPreview(entry: ClipboardEntry)
 
     abstract fun onPin(id: Int)
 

@@ -65,7 +65,9 @@ public class ImageClipboardActivity extends Activity {
         copy.setText("Copy test image");
         copy.setOnClickListener(view -> {
             try {
-                try (OutputStream output = new FileOutputStream(new File(getCacheDir(), "clipboard-fixture.png"))) { output.write(ImageFixture.png()); }
+                try (OutputStream output = new FileOutputStream(new File(getCacheDir(), "clipboard-fixture.png"))) {
+                    output.write(ImageFixture.png(getIntent().getIntExtra("sample_width", 128), getIntent().getIntExtra("sample_height", 96)));
+                }
                 Uri uri = Uri.parse("content://" + getPackageName() + ".image-source/image");
                 getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newUri(getContentResolver(), "Test image", uri));
                 editor.requestFocus();
@@ -76,7 +78,8 @@ public class ImageClipboardActivity extends Activity {
         Button replace = new Button(this);
         replace.setText("Replace clipboard and remove source");
         replace.setOnClickListener(view -> {
-            getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("", "Source image removed"));
+            String text = getIntent().getStringExtra("sample_text");
+            getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("", text == null ? "Source image removed" : text));
             new File(getCacheDir(), "clipboard-fixture.png").delete();
             result.setText("Source removed; history image must remain readable");
             editor.requestFocus();

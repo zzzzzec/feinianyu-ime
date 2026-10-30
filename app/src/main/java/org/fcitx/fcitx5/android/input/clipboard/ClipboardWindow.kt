@@ -125,6 +125,10 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
             override fun onPaste(entry: ClipboardEntry) {
                 if (service.pasteClipboardEntry(entry) && clipboardReturnAfterPaste) windowManager.attachWindow(KeyboardWindow)
             }
+
+            override fun onPreview(entry: ClipboardEntry) {
+                ClipboardImagePreview.show(service, context, entry)
+            }
         }
     }
 

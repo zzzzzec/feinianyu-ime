@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="clipboard_image_preview">Preview image</string>
+    <string name="clipboard_image_close">Close</string>
     <string name="clipboard_image">Image</string>
     <string name="clipboard_image_sensitive">Sensitive image</string>
     <string name="clipboard_image_copy">Copy image</string>

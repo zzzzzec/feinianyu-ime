@@ -11,18 +11,14 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.text.TextUtils
 import android.view.View
-import android.widget.ImageView
+import android.view.Gravity
+import android.widget.FrameLayout
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import splitties.dimensions.dp
 import splitties.resources.drawable
-import splitties.views.dsl.constraintlayout.bottomOfParent
-import splitties.views.dsl.constraintlayout.centerVertically
-import splitties.views.dsl.constraintlayout.constraintLayout
-import splitties.views.dsl.constraintlayout.endOfParent
-import splitties.views.dsl.constraintlayout.lParams
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
@@ -35,9 +31,7 @@ import splitties.views.setPaddingDp
 
 class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radius: Float) : Ui {
 
-    private val image = imageView {
-        scaleType = ImageView.ScaleType.FIT_CENTER
-        setPaddingDp(4)
+    private val image = ClipboardImageView(ctx).apply {
         contentDescription = ctx.getString(R.string.clipboard_image)
         visibility = View.GONE
     }
@@ -59,14 +53,11 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
         }
     }
 
-    val layout = constraintLayout {
-        add(image, lParams(matchParent, dp(120)) { centerVertically() })
-        add(textView, lParams(matchParent, wrapContent) {
-            centerVertically()
-        })
-        add(pin, lParams(dp(12), dp(12)) {
-            bottomOfParent(dp(2))
-            endOfParent(dp(2))
+    val layout = FrameLayout(ctx).apply {
+        addView(image, FrameLayout.LayoutParams(matchParent, wrapContent))
+        addView(textView, FrameLayout.LayoutParams(matchParent, wrapContent))
+        addView(pin, FrameLayout.LayoutParams(dp(12), dp(12), Gravity.BOTTOM or Gravity.END).apply {
+            bottomMargin = dp(2); marginEnd = dp(2)
         })
     }
 
@@ -85,7 +76,7 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
             cornerRadius = radius
             setColor(theme.clipboardEntryColor)
         }
-        add(layout, lParams(matchParent, matchParent))
+        add(layout, lParams(matchParent, wrapContent))
     }
 
     fun setEntry(text: String, pinned: Boolean) {
@@ -96,7 +87,7 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
     fun bind(entry: ClipboardEntry, maskSensitive: Boolean) {
         thumbnail.clear()
         pin.visibility = if (entry.pinned) View.VISIBLE else View.GONE
-        root.minimumHeight = ctx.dp(if (entry.isImage) 128 else 30)
+        root.minimumHeight = ctx.dp(30)
         image.visibility = if (entry.isImage && !maskSensitive) View.VISIBLE else View.GONE
         textView.visibility = if (!entry.isImage || maskSensitive) View.VISIBLE else View.GONE
         root.contentDescription = if (entry.isImage) ctx.getString(if (maskSensitive) R.string.clipboard_image_sensitive else R.string.clipboard_image) else null

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="clipboard_image_preview">查看原图</string>
+    <string name="clipboard_image_close">关闭</string>
     <string name="clipboard_image">图片</string>
     <string name="clipboard_image_sensitive">敏感图片</string>
     <string name="clipboard_image_copy">复制图片</string>
