@@ -811,6 +811,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
+        org.fcitx.fcitx5.android.data.clipboard.ScreenshotMonitor.refresh()
         Timber.d("onStartInputView: restarting=$restarting")
         postFcitxJob {
             focus(true)

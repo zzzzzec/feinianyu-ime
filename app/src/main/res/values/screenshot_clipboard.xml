@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_screenshots">Save new screenshots automatically</string>
+    <string name="clipboard_screenshots_summary">Requires access to all photos. Only new screenshots are added to clipboard history.</string>
+    <string name="screenshot_photo_permission">Photo access</string>
+    <string name="screenshot_permission_full">All photos allowed</string>
+    <string name="screenshot_permission_partial">Selected photos only; new screenshots cannot be received automatically</string>
+    <string name="screenshot_permission_none">Not allowed. Tap to manage permissions.</string>
+    <string name="screenshot_permission_required">Allow access to all photos to save new screenshots automatically.</string>
+    <string name="screenshot_status_off">Automatic screenshot capture is off</string>
+    <string name="screenshot_status_active">Active. New screenshots appear in clipboard history.</string>
+    <string name="screenshot_status_permission">Allow access to all photos to resume.</string>
+    <string name="screenshot_status_error">Could not read screenshots. Check photo access and try again.</string>
+    <string name="screenshot_status_too_large">A screenshot over 32 MB was skipped.</string>
+    <string name="screenshot_status_preparing">Preparing…</string>
+</resources>

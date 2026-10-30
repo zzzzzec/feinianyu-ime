@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_screenshots">自动保存新截图</string>
+    <string name="clipboard_screenshots_summary">需允许访问所有照片。仅将开启后新生成的截图加入剪贴板历史。</string>
+    <string name="screenshot_photo_permission">照片访问权限</string>
+    <string name="screenshot_permission_full">已允许访问所有照片</string>
+    <string name="screenshot_permission_partial">仅允许选定照片，无法自动接收新截图</string>
+    <string name="screenshot_permission_none">未授权，点击管理系统权限</string>
+    <string name="screenshot_permission_required">自动接收新截图需要允许访问所有照片。</string>
+    <string name="screenshot_status_off">自动保存截图已关闭</string>
+    <string name="screenshot_status_active">已开启，新截图会自动出现在剪贴板历史中。</string>
+    <string name="screenshot_status_permission">需要允许访问所有照片才能继续。</string>
+    <string name="screenshot_status_error">暂时无法读取截图，请检查照片权限后重试。</string>
+    <string name="screenshot_status_too_large">一张超过 32 MB 的截图已跳过。</string>
+    <string name="screenshot_status_preparing">正在准备…</string>
+</resources>

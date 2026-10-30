@@ -36,7 +36,7 @@ import splitties.views.setPaddingDp
 class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radius: Float) : Ui {
 
     private val image = imageView {
-        scaleType = ImageView.ScaleType.CENTER_CROP
+        scaleType = ImageView.ScaleType.FIT_CENTER
         setPaddingDp(4)
         contentDescription = ctx.getString(R.string.clipboard_image)
         visibility = View.GONE

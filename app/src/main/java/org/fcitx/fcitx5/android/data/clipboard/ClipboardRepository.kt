@@ -44,7 +44,7 @@ class ClipboardRepository(
         if (obsolete.isNotEmpty()) dao.deleteEntries(obsolete)
     }
 
-    suspend fun capture(entry: ClipboardEntry, source: ClipboardImageStore.Opened? = null) = withContext(Dispatchers.IO) {
+    suspend fun capture(entry: ClipboardEntry, source: ClipboardImageStore.Opened? = null, promoteToLast: Boolean = true) = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
                 val prepared = if (source == null) entry else source.use {
@@ -56,13 +56,14 @@ class ClipboardRepository(
                 val duplicate = if (prepared.isImage) dao.findImage(prepared.imageFile!!, prepared.sensitive) else dao.find(prepared.text, prepared.sensitive)
                 val saved = database.withTransaction {
                     val value = if (duplicate != null) {
-                        dao.updateTime(duplicate.id, prepared.timestamp)
-                        duplicate.copy(timestamp = prepared.timestamp)
+                        val timestamp = maxOf(duplicate.timestamp, prepared.timestamp)
+                        dao.updateTime(duplicate.id, timestamp)
+                        duplicate.copy(timestamp = timestamp)
                     } else prepared.copy(id = dao.insert(prepared).toInt())
                     trimRows()
                     value
                 }
-                update(saved)
+                if (promoteToLast) update(saved)
             } finally { source?.close(); cleanUp() }
         }
     }

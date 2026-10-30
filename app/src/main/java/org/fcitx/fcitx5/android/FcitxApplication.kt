@@ -143,6 +143,7 @@ class FcitxApplication : Application() {
         ThemeManager.init(resources.configuration)
         Locales.onLocaleChange(resources.configuration)
         if (!isDirectBootMode) {
+            org.fcitx.fcitx5.android.data.clipboard.ScreenshotMonitor.init()
             AppUpdater.schedule(this)
             coroutineScope.launch { AppUpdater.check(this@FcitxApplication) }
         }

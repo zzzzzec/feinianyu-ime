@@ -65,6 +65,14 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     suspend fun realDelete() = repository.realDelete()
     suspend fun nukeTable() = repository.clear()
 
+    suspend fun captureScreenshot(uri: android.net.Uri, timestamp: Long): Boolean = withContext(Dispatchers.IO) {
+        val clip = android.content.ClipData.newUri(appContext.contentResolver, "", uri)
+        val image = ClipboardImages.store.open(clip) ?: return@withContext false
+        repository.capture(ClipboardEntry(text = "", timestamp = timestamp), image,
+            promoteToLast = System.currentTimeMillis() - timestamp <= 30_000 && timestamp >= (lastEntry?.timestamp ?: 0L))
+        true
+    }
+
     private var lastClipTimestamp = -1L
     private var lastClipHash = 0
 

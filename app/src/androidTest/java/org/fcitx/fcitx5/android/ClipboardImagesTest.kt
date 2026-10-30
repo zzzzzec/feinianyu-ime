@@ -123,6 +123,21 @@ class ClipboardImagesTest {
         assertFalse(store.file(image.file).exists())
     }
 
+    @Test fun olderScreenshotCatchUpPreservesLatestClipboardAndDuplicateTimestamp() = fixture { repository, database, store, _ ->
+        repository.capture(ClipboardEntry(text = "latest copied text", timestamp = 100))
+        val latest = repository.lastEntry!!
+        val image = store.save(ByteArrayInputStream(ImageFixture.png()))
+        val screenshot = ClipboardEntry(text = "", type = image.mime, imageFile = image.file, timestamp = 50)
+        repository.capture(screenshot, promoteToLast = false)
+        assertEquals(latest, repository.lastEntry)
+        val saved = database.clipboardDao().findImage(image.file, false)!!
+        repository.capture(screenshot.copy(timestamp = 20), promoteToLast = false)
+        assertEquals(50L, database.clipboardDao().get(saved.id)!!.timestamp)
+        assertEquals(latest, repository.lastEntry)
+        assertTrue(store.file(image.file).exists())
+        assertEquals(2, repository.itemCount)
+    }
+
     @Test fun commitUsesImageMimeAndTemporaryReadGrantAndRejectsPlainTextEditors() = fixture { _, _, store, _ ->
         val saved = store.save(ByteArrayInputStream(ImageFixture.png()))
         val entry = ClipboardEntry(text = "", type = saved.mime, imageFile = saved.file)
