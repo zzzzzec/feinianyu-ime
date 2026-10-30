@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_image">Image</string>
+    <string name="clipboard_image_sensitive">Sensitive image</string>
+    <string name="clipboard_image_copy">Copy image</string>
+    <string name="clipboard_image_copied">Image copied</string>
+    <string name="clipboard_image_missing">Image unavailable. Copy it again.</string>
+    <string name="clipboard_image_read_failed">Could not read this image. Copy it again.</string>
+    <string name="clipboard_image_too_large">Images up to 32 MB are supported.</string>
+    <string name="clipboard_image_paste_fallback">This field cannot insert images. Image copied; touch and hold to paste or share.</string>
+</resources>

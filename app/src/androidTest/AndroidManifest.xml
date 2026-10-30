@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="org.fcitx.fcitx5.android.fixture.ImageClipboardActivity"
+            android:process=":clipboardReceiver" android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <provider android:name="org.fcitx.fcitx5.android.fixture.ImageSourceProvider"
+            android:authorities="${applicationId}.image-source" android:exported="false"
+            android:grantUriPermissions="true" android:process=":clipboardReceiver" />
+    </application>
+</manifest>

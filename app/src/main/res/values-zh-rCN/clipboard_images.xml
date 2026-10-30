@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_image">图片</string>
+    <string name="clipboard_image_sensitive">敏感图片</string>
+    <string name="clipboard_image_copy">复制图片</string>
+    <string name="clipboard_image_copied">图片已复制</string>
+    <string name="clipboard_image_missing">图片已失效，请重新复制。</string>
+    <string name="clipboard_image_read_failed">无法读取这张图片，请重新复制。</string>
+    <string name="clipboard_image_too_large">支持 32 MB 以内的图片。</string>
+    <string name="clipboard_image_paste_fallback">当前输入框不支持直接插图。已复制图片，可长按粘贴或分享。</string>
+</resources>

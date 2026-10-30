@@ -55,6 +55,7 @@ object UserDataManager {
     private val dataBasesDir = File(appContext.applicationInfo.dataDir, "databases")
     private val externalDir = appContext.getExternalFilesDir(null)!!
     private val recentlyUsedDir = appContext.filesDir.resolve(RecentlyUsed.DIR_NAME)
+    private val clipboardImagesDir = appContext.filesDir.resolve("clipboard-images")
 
     @OptIn(ExperimentalSerializationApi::class)
     fun export(dest: OutputStream, timestamp: Long = System.currentTimeMillis()) = runCatching {
@@ -65,6 +66,7 @@ object UserDataManager {
             writeFileTree(dataBasesDir, "databases", zipStream)
             // external
             writeFileTree(externalDir, "external", zipStream)
+            writeFileTree(clipboardImagesDir, "clipboard_images", zipStream)
             // recently_used moved to SharedPreference and shoud not be exported
             // metadata
             zipStream.putNextEntry(ZipEntry("metadata.json"))
@@ -102,6 +104,7 @@ object UserDataManager {
                 copyDir(File(tempDir, "shared_prefs"), sharedPrefsDir)
                 copyDir(File(tempDir, "databases"), dataBasesDir)
                 copyDir(File(tempDir, "external"), externalDir)
+                File(tempDir, "clipboard_images").takeIf { it.isDirectory }?.let { copyDir(it, clipboardImagesDir) }
                 // keep importing recently_used for backwords compatibility
                 copyDir(File(tempDir, "recently_used"), recentlyUsedDir)
                 metadata

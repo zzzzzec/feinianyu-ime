@@ -28,6 +28,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
+import org.fcitx.fcitx5.android.data.clipboard.ClipboardContent
+import org.fcitx.fcitx5.android.utils.toast
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
@@ -106,14 +108,11 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
             }
 
             override fun onShare(entry: ClipboardEntry) {
-                val target = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, entry.text)
-                }
-                val chooser = Intent.createChooser(target, null).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                service.startActivity(chooser)
+                runCatching {
+                    val chooser = Intent.createChooser(ClipboardContent.share(context, entry), null)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    service.startActivity(chooser)
+                }.onFailure { context.toast(R.string.clipboard_image_read_failed) }
             }
 
             override fun onDelete(id: Int) {
@@ -124,8 +123,7 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
             }
 
             override fun onPaste(entry: ClipboardEntry) {
-                service.commitText(entry.text)
-                if (clipboardReturnAfterPaste) windowManager.attachWindow(KeyboardWindow)
+                if (service.pasteClipboardEntry(entry) && clipboardReturnAfterPaste) windowManager.attachWindow(KeyboardWindow)
             }
         }
     }

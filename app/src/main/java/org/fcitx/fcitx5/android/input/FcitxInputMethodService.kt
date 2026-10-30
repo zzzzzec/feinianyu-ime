@@ -77,6 +77,7 @@ import org.fcitx.fcitx5.android.utils.monitorCursorAnchor
 import org.fcitx.fcitx5.android.utils.styledColorOrDefault
 import org.fcitx.fcitx5.android.utils.styledFloat
 import org.fcitx.fcitx5.android.utils.withBatchEdit
+import org.fcitx.fcitx5.android.utils.toast
 import splitties.bitflags.hasFlag
 import splitties.dimensions.dp
 import splitties.resources.styledColor
@@ -483,6 +484,26 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 commitText(text, 1)
                 setSelection(target, target)
             }
+        }
+    }
+
+    fun pasteClipboardEntry(entry: org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry): Boolean {
+        if (!entry.isImage) { if (currentInputConnection == null) return false; commitText(entry.text); return true }
+        val connection = currentInputConnection ?: return false
+        val info = currentInputEditorInfo ?: return false
+        return try {
+            val content = org.fcitx.fcitx5.android.data.clipboard.ClipboardContent
+            if (content.supports(info, entry.type)) {
+                finishComposing()
+                postFcitxJob { reset() }
+                if (content.commit(this, connection, info, entry)) return true
+            }
+            content.copy(this, entry)
+            toast(R.string.clipboard_image_paste_fallback)
+            false
+        } catch (_: Exception) {
+            toast(R.string.clipboard_image_read_failed)
+            false
         }
     }
 

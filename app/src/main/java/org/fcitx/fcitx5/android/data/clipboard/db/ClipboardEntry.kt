@@ -25,8 +25,12 @@ data class ClipboardEntry(
     @ColumnInfo(defaultValue = "0")
     val deleted: Boolean = false,
     @ColumnInfo(defaultValue = "0")
-    val sensitive: Boolean = false
+    val sensitive: Boolean = false,
+    @ColumnInfo(defaultValue = "NULL")
+    val imageFile: String? = null
 ) {
+    @get:androidx.room.Ignore
+    val isImage: Boolean get() = imageFile != null
     companion object {
         const val BULLET = "•"
 
@@ -38,13 +42,17 @@ data class ClipboardEntry(
             "android.content.extra.IS_SENSITIVE"
         }
 
+        fun isSensitive(description: ClipDescription): Boolean =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && description.extras?.getBoolean(IS_SENSITIVE) == true
+
         fun fromClipData(
             clipData: ClipData,
             transformer: ((String) -> String)? = null
         ): ClipboardEntry? {
             val desc = clipData.description
             // TODO: handle multiple items (when does this happen?)
-            val item = clipData.getItemAt(0) ?: return null
+            if (clipData.itemCount == 0) return null
+            val item = clipData.getItemAt(0)
             val str = item.text?.toString() ?: return null
             val sensitive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 desc.extras?.getBoolean(IS_SENSITIVE) ?: false

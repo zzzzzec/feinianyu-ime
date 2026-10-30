@@ -92,7 +92,7 @@ class UpdateRetentionTest {
                 val entry = database.clipboardDao().get(1)
                 assertEquals("synthetic retained clipboard", entry?.text)
                 assertEquals(true, entry?.pinned)
-                assertEquals(4, database.openHelper.readableDatabase.version)
+                assertEquals(5, database.openHelper.readableDatabase.version)
             } finally { database.close() }
         } finally { context.deleteDatabase(name) }
     }

@@ -12,6 +12,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
+import org.fcitx.fcitx5.android.data.clipboard.ClipboardContent
+import org.fcitx.fcitx5.android.utils.toast
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.utils.DeviceUtil
 import org.fcitx.fcitx5.android.utils.item
@@ -91,7 +93,7 @@ abstract class ClipboardAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val entry = getItem(position) ?: return
         with(holder.entryUi) {
-            setEntry(excerptText(entry.text, entry.sensitive && maskSensitive), entry.pinned)
+            bind(entry, entry.sensitive && maskSensitive)
             root.setOnClickListener {
                 onPaste(entry)
             }
@@ -108,7 +110,13 @@ abstract class ClipboardAdapter(
                         onPin(entry.id)
                     }
                 }
-                menu.item(R.string.edit, R.drawable.ic_baseline_edit_24, iconTint) {
+                if (entry.isImage) {
+                    menu.item(R.string.clipboard_image_copy, R.drawable.ic_baseline_content_copy_24, iconTint) {
+                        runCatching { ClipboardContent.copy(ctx, entry) }
+                            .onSuccess { ctx.toast(R.string.clipboard_image_copied) }
+                            .onFailure { ctx.toast(R.string.clipboard_image_read_failed) }
+                    }
+                } else menu.item(R.string.edit, R.drawable.ic_baseline_edit_24, iconTint) {
                     onEdit(entry.id)
                 }
                 menu.item(R.string.share, R.drawable.ic_baseline_share_24, iconTint) {
@@ -132,6 +140,8 @@ abstract class ClipboardAdapter(
     }
 
     fun getEntryAt(position: Int) = getItem(position)
+
+    override fun onViewRecycled(holder: ViewHolder) { holder.entryUi.recycle(); super.onViewRecycled(holder) }
 
     fun onDetached() {
         popupMenu?.dismiss()

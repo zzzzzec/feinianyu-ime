@@ -123,14 +123,10 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         ClipboardManager.OnClipboardUpdateListener {
             if (!clipboardSuggestion.getValue()) return@OnClipboardUpdateListener
             service.lifecycleScope.launch {
-                if (it.text.isEmpty()) {
+                if (it == null || (!it.isImage && it.text.isEmpty())) {
                     isClipboardFresh = false
                 } else {
-                    idleUi.clipboardUi.text.text = if (it.sensitive && clipboardMaskSensitive) {
-                        ClipboardEntry.BULLET.repeat(min(42, it.text.length))
-                    } else {
-                        it.text.take(42)
-                    }
+                    idleUi.clipboardUi.setEntry(it, it.sensitive && clipboardMaskSensitive)
                     isClipboardFresh = true
                     launchClipboardTimeoutJob()
                 }
@@ -310,7 +306,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
                     ClipboardManager.lastEntry?.let {
-                        service.commitText(it.text)
+                        service.pasteClipboardEntry(it)
                     }
                     clipboardTimeoutJob?.cancel()
                     clipboardTimeoutJob = null
@@ -319,7 +315,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 }
                 setOnLongClickListener {
                     ClipboardManager.lastEntry?.let {
-                        AppUtil.launchClipboardEdit(context, it.id, true)
+                        if (it.isImage) windowManager.attachWindow(ClipboardWindow())
+                        else AppUtil.launchClipboardEdit(context, it.id, true)
                     }
                     true
                 }

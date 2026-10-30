@@ -11,6 +11,8 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.text.TextUtils
 import android.view.View
+import android.widget.ImageView
+import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
@@ -33,6 +35,14 @@ import splitties.views.setPaddingDp
 
 class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radius: Float) : Ui {
 
+    private val image = imageView {
+        scaleType = ImageView.ScaleType.CENTER_CROP
+        setPaddingDp(4)
+        contentDescription = ctx.getString(R.string.clipboard_image)
+        visibility = View.GONE
+    }
+    private val thumbnail = ClipboardThumbnail(image)
+
     val textView = textView {
         minLines = 1
         maxLines = 4
@@ -50,6 +60,7 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
     }
 
     val layout = constraintLayout {
+        add(image, lParams(matchParent, dp(120)) { centerVertically() })
         add(textView, lParams(matchParent, wrapContent) {
             centerVertically()
         })
@@ -60,6 +71,7 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
     }
 
     override val root = CustomGestureView(ctx).apply {
+        clipToOutline = true
         isClickable = true
         minimumHeight = dp(30)
         foreground = RippleDrawable(
@@ -80,4 +92,23 @@ class ClipboardEntryUi(override val ctx: Context, private val theme: Theme, radi
         textView.text = text
         pin.visibility = if (pinned) View.VISIBLE else View.GONE
     }
+
+    fun bind(entry: ClipboardEntry, maskSensitive: Boolean) {
+        thumbnail.clear()
+        pin.visibility = if (entry.pinned) View.VISIBLE else View.GONE
+        root.minimumHeight = ctx.dp(if (entry.isImage) 128 else 30)
+        image.visibility = if (entry.isImage && !maskSensitive) View.VISIBLE else View.GONE
+        textView.visibility = if (!entry.isImage || maskSensitive) View.VISIBLE else View.GONE
+        root.contentDescription = if (entry.isImage) ctx.getString(if (maskSensitive) R.string.clipboard_image_sensitive else R.string.clipboard_image) else null
+        if (entry.isImage) {
+            if (maskSensitive) textView.setText(R.string.clipboard_image_sensitive)
+            else thumbnail.load(entry.imageFile!!) {
+                image.visibility = View.GONE
+                textView.visibility = View.VISIBLE
+                textView.setText(R.string.clipboard_image_missing)
+            }
+        } else textView.text = ClipboardAdapter.excerptText(entry.text, maskSensitive)
+    }
+
+    fun recycle() = thumbnail.clear()
 }

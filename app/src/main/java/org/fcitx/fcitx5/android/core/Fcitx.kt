@@ -508,7 +508,9 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
 
     @Keep
     private val onClipboardUpdate = ClipboardManager.OnClipboardUpdateListener {
-        lifecycle.launchWhenReady { setClipboard(it.text, it.sensitive) }
+        val text = it?.takeUnless { entry -> entry.isImage }?.text.orEmpty()
+        val sensitive = it?.sensitive == true
+        lifecycle.launchWhenReady { setClipboard(text, sensitive) }
     }
 
     private fun computeAddonGraph() = runBlocking {

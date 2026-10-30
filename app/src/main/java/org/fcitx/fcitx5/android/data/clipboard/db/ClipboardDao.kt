@@ -17,7 +17,7 @@ interface ClipboardDao {
     @Query("UPDATE ${ClipboardEntry.TABLE_NAME} SET pinned=:pinned WHERE id=:id")
     suspend fun updatePinStatus(id: Int, pinned: Boolean)
 
-    @Query("UPDATE ${ClipboardEntry.TABLE_NAME} SET text=:text WHERE id=:id")
+    @Query("UPDATE ${ClipboardEntry.TABLE_NAME} SET text=:text WHERE id=:id AND imageFile IS NULL")
     suspend fun updateText(id: Int, text: String)
 
     @Query("UPDATE ${ClipboardEntry.TABLE_NAME} SET timestamp=:timestamp WHERE id=:id")
@@ -41,8 +41,17 @@ interface ClipboardDao {
     @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE deleted=0 ORDER BY pinned DESC, timestamp DESC")
     fun allEntries(): PagingSource<Int, ClipboardEntry>
 
-    @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE text=:text AND sensitive=:sensitive AND deleted=0 LIMIT 1")
+    @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE text=:text AND sensitive=:sensitive AND imageFile IS NULL AND deleted=0 LIMIT 1")
     suspend fun find(text: String, sensitive: Boolean = false): ClipboardEntry?
+
+    @Query("SELECT * FROM ${ClipboardEntry.TABLE_NAME} WHERE imageFile=:file AND sensitive=:sensitive AND deleted=0 LIMIT 1")
+    suspend fun findImage(file: String, sensitive: Boolean): ClipboardEntry?
+
+    @Query("SELECT DISTINCT imageFile FROM ${ClipboardEntry.TABLE_NAME} WHERE imageFile IS NOT NULL")
+    suspend fun imageFiles(): List<String>
+
+    @Query("DELETE FROM ${ClipboardEntry.TABLE_NAME} WHERE id in (:ids)")
+    suspend fun deleteEntries(ids: IntArray)
 
     @Query("SELECT id FROM ${ClipboardEntry.TABLE_NAME} WHERE deleted=0")
     suspend fun findAllIds(): IntArray

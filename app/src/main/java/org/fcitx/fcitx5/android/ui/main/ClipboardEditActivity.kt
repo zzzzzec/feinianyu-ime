@@ -56,6 +56,7 @@ class ClipboardEditActivity : Activity() {
     }
 
     private fun setEntry(entry: ClipboardEntry) {
+        if (entry.isImage) { finish(); return }
         entryId = entry.id
         editText.setText(entry.text)
     }

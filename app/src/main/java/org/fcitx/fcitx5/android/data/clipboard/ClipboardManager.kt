@@ -9,152 +9,72 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.Keep
 import androidx.room.Room
-import androidx.room.withTransaction
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardDao
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardDatabase
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
-import org.fcitx.fcitx5.android.utils.WeakHashSet
-import org.fcitx.fcitx5.android.utils.appContext
-import org.fcitx.fcitx5.android.utils.clipboardManager
+import org.fcitx.fcitx5.android.utils.*
 import timber.log.Timber
 
 object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
-    private lateinit var clbDb: ClipboardDatabase
-    private lateinit var clbDao: ClipboardDao
-
-    fun interface OnClipboardUpdateListener {
-        fun onUpdate(entry: ClipboardEntry)
-    }
-
+    private lateinit var dao: ClipboardDao
+    private lateinit var repository: ClipboardRepository
     private val clipboardManager = appContext.clipboardManager
-
-    private val mutex = Mutex()
-
-    var itemCount: Int = 0
-        private set
-
-    private suspend fun updateItemCount() {
-        itemCount = clbDao.itemCount()
-    }
-
     private val onUpdateListeners = WeakHashSet<OnClipboardUpdateListener>()
-
-    var transformer: ((String) -> String)? = null
-
-    fun addOnUpdateListener(listener: OnClipboardUpdateListener) {
-        onUpdateListeners.add(listener)
-    }
-
-    fun removeOnUpdateListener(listener: OnClipboardUpdateListener) {
-        onUpdateListeners.remove(listener)
-    }
-
     private val enabledPref = AppPrefs.getInstance().clipboard.clipboardListening
-
-    @Keep
-    private val enabledListener = ManagedPreference.OnChangeListener<Boolean> { _, value ->
-        if (value) {
-            clipboardManager.addPrimaryClipChangedListener(this)
-        } else {
-            clipboardManager.removePrimaryClipChangedListener(this)
-        }
-    }
-
     private val limitPref = AppPrefs.getInstance().clipboard.clipboardHistoryLimit
 
-    @Keep
-    private val limitListener = ManagedPreference.OnChangeListener<Int> { _, _ ->
-        launch { removeOutdated() }
-    }
+    fun interface OnClipboardUpdateListener { fun onUpdate(entry: ClipboardEntry?) }
+    fun addOnUpdateListener(listener: OnClipboardUpdateListener) { onUpdateListeners.add(listener) }
+    fun removeOnUpdateListener(listener: OnClipboardUpdateListener) { onUpdateListeners.remove(listener) }
+    var transformer: ((String) -> String)? = null
+    val itemCount get() = repository.itemCount
+    val lastEntry get() = repository.lastEntry
 
-    var lastEntry: ClipboardEntry? = null
-
-    private fun updateLastEntry(entry: ClipboardEntry) {
-        lastEntry = entry
-        onUpdateListeners.forEach { it.onUpdate(entry) }
+    @Keep private val enabledListener = ManagedPreference.OnChangeListener<Boolean> { _, value ->
+        if (value) { clipboardManager.addPrimaryClipChangedListener(this); onPrimaryClipChanged() }
+        else clipboardManager.removePrimaryClipChangedListener(this)
     }
+    @Keep private val limitListener = ManagedPreference.OnChangeListener<Int> { _, _ -> launch { repository.trim() } }
 
     fun init(context: Context) {
-        clbDb = Room
-            .databaseBuilder(context, ClipboardDatabase::class.java, "clbdb")
-            // Preserve data on an unsupported schema, including forced downgrades.
-            .build()
-        clbDao = clbDb.clipboardDao()
+        val database = Room.databaseBuilder(context, ClipboardDatabase::class.java, "clbdb").build()
+        dao = database.clipboardDao()
+        repository = ClipboardRepository(database, ClipboardImages.store, { limitPref.getValue() }, onUpdate = { entry ->
+            launch(Dispatchers.Main.immediate) { onUpdateListeners.forEach { it.onUpdate(entry) } }
+        }, additionalReferences = { setOfNotNull(ClipboardImages.primaryFile) })
         enabledListener.onChange(enabledPref.key, enabledPref.getValue())
         enabledPref.registerOnChangeListener(enabledListener)
-        limitListener.onChange(limitPref.key, limitPref.getValue())
         limitPref.registerOnChangeListener(limitListener)
-        launch { updateItemCount() }
+        launch { repository.initialize(); repository.trim() }
     }
 
-    suspend fun get(id: Int) = clbDao.get(id)
-
-    suspend fun haveUnpinned() = clbDao.haveUnpinned()
-
-    fun allEntries() = clbDao.allEntries()
-
-    suspend fun pin(id: Int) = clbDao.updatePinStatus(id, true)
-
-    suspend fun unpin(id: Int) = clbDao.updatePinStatus(id, false)
-
-    suspend fun updateText(id: Int, text: String) {
-        lastEntry?.let {
-            if (id == it.id) updateLastEntry(it.copy(text = text))
-        }
-        clbDao.updateText(id, text)
-    }
-
-    suspend fun delete(id: Int) {
-        clbDao.markAsDeleted(id)
-        updateItemCount()
-    }
-
-    suspend fun deleteAll(skipPinned: Boolean = true): IntArray {
-        val ids = if (skipPinned) {
-            clbDao.findUnpinnedIds()
-        } else {
-            clbDao.findAllIds()
-        }
-        clbDao.markAsDeleted(*ids)
-        updateItemCount()
-        return ids
-    }
-
-    suspend fun undoDelete(vararg ids: Int) {
-        clbDao.undoDelete(*ids)
-        updateItemCount()
-    }
-
-    suspend fun realDelete() {
-        clbDao.realDelete()
-    }
-
-    suspend fun nukeTable() {
-        withContext(coroutineContext) {
-            clbDb.clearAllTables()
-            updateItemCount()
-        }
-    }
+    suspend fun get(id: Int) = dao.get(id)
+    suspend fun haveUnpinned() = dao.haveUnpinned()
+    fun allEntries() = dao.allEntries()
+    suspend fun pin(id: Int) = repository.pin(id, true)
+    suspend fun unpin(id: Int) = repository.pin(id, false)
+    suspend fun updateText(id: Int, text: String) = repository.updateText(id, text)
+    suspend fun delete(id: Int) = repository.delete(id)
+    suspend fun deleteAll(skipPinned: Boolean = true) = repository.deleteAll(skipPinned)
+    suspend fun undoDelete(vararg ids: Int) = repository.undoDelete(*ids)
+    suspend fun realDelete() = repository.realDelete()
+    suspend fun nukeTable() = repository.clear()
 
     private var lastClipTimestamp = -1L
     private var lastClipHash = 0
 
     override fun onPrimaryClipChanged() {
-        val clip = clipboardManager.primaryClip ?: return
-        /**
-         * skip duplicate ClipData
-         * https://developer.android.com/reference/android/content/ClipboardManager.OnPrimaryClipChangedListener#onPrimaryClipChanged()
-         */
+        val clip = try { clipboardManager.primaryClip } catch (_: Exception) { return }
+        if (clip == null) {
+            if (InputMethodUtil.isSelected()) { ClipboardImages.primaryFile = null; launch { repository.trim() } }
+            return
+        }
+        ClipboardImages.primaryFile = ClipboardImages.store.ownedName(clip.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val timestamp = clip.description.timestamp
             if (timestamp == lastClipTimestamp) return
@@ -163,46 +83,24 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
             val timestamp = System.currentTimeMillis()
             val hash = clip.hashCode()
             if (timestamp - lastClipTimestamp < 100L && hash == lastClipHash) return
-            lastClipTimestamp = timestamp
-            lastClipHash = hash
+            lastClipTimestamp = timestamp; lastClipHash = hash
         }
+        val image = try { ClipboardImages.store.open(clip) } catch (error: Exception) {
+            launch { withContext(Dispatchers.Main) { appContext.toast(R.string.clipboard_image_read_failed) } }
+            return
+        }
+        val entry = if (image != null) ClipboardEntry(text = "", timestamp = clip.timestamp(), sensitive = ClipboardEntry.isSensitive(clip.description))
+            else ClipboardEntry.fromClipData(clip, transformer) ?: return
         launch {
-            mutex.withLock {
-                val entry = ClipboardEntry.fromClipData(clip, transformer) ?: return@withLock
-                if (entry.text.isBlank()) return@withLock
-                try {
-                    clbDao.find(entry.text, entry.sensitive)?.let {
-                        updateLastEntry(it.copy(timestamp = entry.timestamp))
-                        clbDao.updateTime(it.id, entry.timestamp)
-                        return@withLock
-                    }
-                    val insertedEntry = clbDb.withTransaction {
-                        val rowId = clbDao.insert(entry)
-                        removeOutdated()
-                        // new entry can be deleted immediately if clipboard limit == 0
-                        clbDao.get(rowId) ?: entry
-                    }
-                    updateLastEntry(insertedEntry)
-                    updateItemCount()
-                } catch (exception: Exception) {
-                    Timber.w("Failed to update clipboard database: $exception")
-                    updateLastEntry(entry)
+            try { repository.capture(entry, image) }
+            catch (cancelled: CancellationException) { image?.close(); throw cancelled }
+            catch (error: Exception) {
+                // Never include clipboard text or source URIs in runtime logs.
+                Timber.w("Clipboard capture failed: ${error.javaClass.simpleName}")
+                if (image != null) withContext(Dispatchers.Main) {
+                    appContext.toast(if (error is ClipboardImageStore.TooLarge) R.string.clipboard_image_too_large else R.string.clipboard_image_read_failed)
                 }
             }
         }
     }
-
-    private suspend fun removeOutdated() {
-        val limit = limitPref.getValue()
-        val unpinned = clbDao.getAllUnpinned()
-        if (unpinned.size > limit) {
-            // the last one we will keep
-            val last = unpinned
-                .sortedBy { it.id }
-                .getOrNull(unpinned.size - limit)
-            // delete all unpinned before that, or delete all when limit <= 0
-            clbDao.markUnpinnedAsDeletedEarlierThan(last?.timestamp ?: System.currentTimeMillis())
-        }
-    }
-
 }
