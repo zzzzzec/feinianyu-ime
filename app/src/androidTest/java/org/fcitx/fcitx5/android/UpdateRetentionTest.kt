@@ -45,6 +45,12 @@ class UpdateRetentionTest {
             assertEquals(setOf("one", "two"), preferences.getStringSet("unknown_future_setting", null))
             assertEquals(9876543210L, preferences.getLong("long_value", 0))
             assertEquals(1.25f, preferences.getFloat("float_value", 0f), 0.001f)
+            // A retry after restoring/editing an older schema must snapshot the
+            // latest choices, not reuse the first attempt's stale backup.
+            preferences.edit().putInt("keyboard_font_size", 25).commit()
+            ConfigMigrations.migrate(preferences, directory)
+            ConfigMigrations.restore(preferences, snapshot)
+            assertEquals(25, preferences.getInt("keyboard_font_size", 0))
         } finally { preferences.edit().clear().commit(); directory.deleteRecursively() }
     }
 

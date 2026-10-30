@@ -19,7 +19,7 @@ object ConfigMigrations {
         // Persist the exact previous values, with types, before any edit.
         check(backupDirectory.isDirectory || backupDirectory.mkdirs()) { "Cannot create config backup directory" }
         val snapshot = File(backupDirectory, "preferences-v$oldVersion.json")
-        if (!snapshot.exists()) {
+        run {
             val values = JSONObject()
             preferences.all.forEach { (key, value) ->
                 val type = when (value) {
