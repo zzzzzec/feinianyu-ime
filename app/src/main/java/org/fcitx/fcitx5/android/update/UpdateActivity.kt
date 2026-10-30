@@ -69,7 +69,7 @@ class UpdateActivity : AppCompatActivity() {
         lifecycleScope.launch {
             AppUpdater.state.collect { state ->
                 status.text = state.message
-                notes.text = state.notes
+                notes.text = state.notes.ifEmpty { AppUpdater.latestNotes(this@UpdateActivity) }
                 install.isEnabled = state.ready
             }
         }

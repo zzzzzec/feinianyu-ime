@@ -67,6 +67,7 @@ object AppUpdater {
     }
     fun pendingNotes(context: Context) = preferences(context).getString("ready_notes", "").orEmpty()
     fun pendingName(context: Context) = preferences(context).getString("ready_name", "").orEmpty()
+    fun latestNotes(context: Context) = preferences(context).getString("release_notes", "").orEmpty()
     fun discardPending(context: Context) {
         val prefs = preferences(context)
         val code = prefs.getLong("ready_version", 0)
@@ -164,9 +165,9 @@ object AppUpdater {
             fun asset(name: String): JSONObject = (0 until remoteAssets.length()).map { remoteAssets.getJSONObject(it) }.firstOrNull { it.getString("name") == name } ?: error("Missing release asset: $name")
             val manifest = text(asset("update.json").getString("browser_download_url"))
             val selected = ReleaseManifest.select(manifest, context.packageName, Build.SUPPORTED_ABIS.toList(), version(context))
-            prefs.edit().putLong("last_check", System.currentTimeMillis()).apply()
-            if (selected == null) { mutableState.value = UpdateState(context.getString(R.string.update_current)); return@withContext }
             val notes = release.optString("body").take(20000)
+            prefs.edit().putLong("last_check", System.currentTimeMillis()).putString("release_notes", notes).apply()
+            if (selected == null) { mutableState.value = UpdateState(context.getString(R.string.update_current), notes); return@withContext }
             val name = release.optString("name", release.getString("tag_name"))
             val temporary = File(directory(context), "update-${selected.versionCode}.download.apk")
             val output = File(directory(context), "update-${selected.versionCode}.apk")
