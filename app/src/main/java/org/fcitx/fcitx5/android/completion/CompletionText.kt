@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+package org.fcitx.fcitx5.android.completion
+
+/** Unicode code points, not UTF-16 code units. Never join separate editors or messages. */
+object CompletionText {
+    fun suffix(text: String, maxChars: Int): String {
+        val count = text.codePointCount(0, text.length)
+        return if (count <= maxChars) text else text.substring(text.offsetByCodePoints(0, count - maxChars))
+    }
+    fun suggestion(raw: String, maxChars: Int = 12): String {
+        val text = raw.substringBefore('\n').substringBefore('\r').substringBefore("<|").trimEnd()
+        if (text.isBlank() || text.contains('\uFFFD') || text.any { it.isISOControl() }) return ""
+        val count = text.codePointCount(0, text.length).coerceAtMost(maxChars)
+        return text.substring(0, text.offsetByCodePoints(0, count))
+    }
+}

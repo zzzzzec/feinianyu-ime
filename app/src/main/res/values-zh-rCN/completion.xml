@@ -1,0 +1,18 @@
+<resources>
+    <string name="completion_title">智能续写</string>
+    <string name="completion_enabled">输入后自动补全</string>
+    <string name="completion_model">续写模型</string>
+    <string name="completion_download">通过 Wi-Fi 下载模型</string>
+    <string name="completion_model_ready">模型已就绪 · 应用更新时保留</string>
+    <string name="completion_model_downloading">正在下载：%1$d / %2$d MiB · Wi-Fi</string>
+    <string name="completion_model_verifying">正在校验模型…</string>
+    <string name="completion_model_missing">模型尚未下载 · 约 505 MiB</string>
+    <string name="completion_context">前文长度</string>
+    <string name="completion_budget">响应时限</string>
+    <string name="completion_try">试一试</string>
+    <string name="completion_try_hint">输入一段文字，停下后查看补全</string>
+    <string name="completion_perf">性能记录</string>
+    <string name="completion_export">导出性能记录</string>
+    <string name="completion_accept">采用续写：%1$s</string>
+    <string name="completion_dismiss">关闭续写建议</string>
+</resources>

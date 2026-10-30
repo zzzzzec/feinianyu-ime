@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.feinianyu.ime"
-        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.2.5"
+        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.3.0"
         buildConfigField("String", "UPDATE_REPOSITORY", "\"zzzzzec/feinianyu-ime\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -32,6 +32,7 @@ android {
                 targets(
                     // jni
                     "native-lib",
+                    "qwen-completion",
                     // copy fcitx5 built-in addon libraries
                     "copy-fcitx5-modules",
                     // android specific modules

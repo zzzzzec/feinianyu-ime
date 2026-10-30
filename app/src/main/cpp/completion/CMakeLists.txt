@@ -1,0 +1,5 @@
+add_library(qwen-completion SHARED qwen-completion.cpp)
+target_link_libraries(qwen-completion PRIVATE llama log)
+target_include_directories(qwen-completion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../third_party/llama.cpp/vendor")
+target_compile_features(qwen-completion PRIVATE cxx_std_17)
+target_compile_options(qwen-completion PRIVATE -O3)

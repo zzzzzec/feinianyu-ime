@@ -1,0 +1,20 @@
+<resources>
+    <string name="completion_title">Smart completion</string>
+    <string name="completion_enabled">Complete after typing</string>
+    <string name="completion_model">Completion model</string>
+    <string name="completion_download">Download model over Wi-Fi</string>
+    <string name="completion_model_ready">Model ready · retained across app updates</string>
+    <string name="completion_model_downloading">Downloading: %1$d / %2$d MiB · Wi-Fi</string>
+    <string name="completion_model_verifying">Verifying model…</string>
+    <string name="completion_model_missing">Model not downloaded · approximately 505 MiB</string>
+    <string name="completion_context">Previous text</string>
+    <string name="completion_budget">Response time limit</string>
+    <string name="completion_try">Try completion</string>
+    <string name="completion_try_hint">Type some text, then pause</string>
+    <string name="completion_perf">Performance records</string>
+    <string name="completion_export">Export performance records</string>
+    <string name="completion_accept">Accept completion: %1$s</string>
+    <string name="completion_dismiss">Dismiss completion</string>
+    <item name="completion_suggestion" type="id" />
+    <item name="completion_test_input" type="id" />
+</resources>

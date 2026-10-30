@@ -85,6 +85,9 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
             }
             addCategory("Android") {
+                addPreference(R.string.completion_title, icon = R.drawable.ic_baseline_keyboard_24) {
+                    startActivity(Intent(requireContext(), org.fcitx.fcitx5.android.completion.CompletionActivity::class.java))
+                }
                 addPreference(R.string.ranking_diagnostics, icon = R.drawable.ic_baseline_sort_24) {
                     startActivity(Intent(requireContext(), org.fcitx.fcitx5.android.diagnostics.RankingDiagnosticsActivity::class.java))
                 }

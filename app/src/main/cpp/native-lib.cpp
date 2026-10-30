@@ -93,6 +93,20 @@ public:
         p_unicode = addonMgr.addon("unicode");
         p_clipboard = addonMgr.addon("clipboard", true);
         setupCallback(p_frontend);
+        disableBuiltinPrediction();
+    }
+
+    // Post-commit suggestions belong to Qwen, including when its model is missing or disabled.
+    // Persist only this option; preserve all dictionary, learning and pinyin settings.
+    void disableBuiltinPrediction() {
+        auto *pinyin = p_instance->addonManager().addon("pinyin", true);
+        if (!pinyin || !pinyin->getConfig()) return;
+        fcitx::RawConfig config;
+        pinyin->getConfig()->save(config);
+        auto prediction = config.get("Prediction");
+        if (prediction && prediction->value() == "False") return;
+        config["Prediction"] = "False";
+        pinyin->setConfig(config);
     }
 
     void reloadConfig() {
@@ -109,6 +123,7 @@ public:
                 p_instance->reloadAddonConfig(name);
             }
         }
+        disableBuiltinPrediction();
     }
 
     void sendKey(fcitx::Key key, bool up, int timestamp) {
@@ -246,7 +261,11 @@ public:
         if (!addonInstance) {
             return;
         }
-        addonInstance->setConfig(config);
+        if (addonName == "pinyin") {
+            auto adjusted = config;
+            adjusted["Prediction"] = "False";
+            addonInstance->setConfig(adjusted);
+        } else addonInstance->setConfig(config);
     }
 
     std::unique_ptr<fcitx::RawConfig> getAddonSubConfig(const std::string &addonName, const std::string &path) {
@@ -295,6 +314,7 @@ public:
             return;
         }
         engine->setConfigForInputMethod(*entry, config);
+        if (entry->addon() == "pinyin") disableBuiltinPrediction();
     }
 
     std::vector<AddonStatus> getAddons() {
@@ -409,6 +429,7 @@ public:
                           fcitx::StatusGroup::InputMethod,
                           fcitx::StatusGroup::AfterInputMethod}) {
             for (auto act: ic->statusArea().actions(group)) {
+                if (act == p_instance->userInterfaceManager().lookupAction("pinyin-prediction")) continue;
                 actions.emplace_back(act, ic);
             }
         }
@@ -420,6 +441,7 @@ public:
         if (!ic) return;
         auto action = p_instance->userInterfaceManager().lookupActionById(id);
         if (!action) return;
+        if (action == p_instance->userInterfaceManager().lookupAction("pinyin-prediction")) return;
         action->activate(ic);
     }
 

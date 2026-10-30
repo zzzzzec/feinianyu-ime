@@ -58,6 +58,7 @@ import org.fcitx.fcitx5.android.core.KeySym
 import org.fcitx.fcitx5.android.core.ScancodeMapping
 import org.fcitx.fcitx5.android.core.SubtypeManager
 import org.fcitx.fcitx5.android.core.SuzuAssets
+import org.fcitx.fcitx5.android.completion.*
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.InputFeedbacks
@@ -105,6 +106,48 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private lateinit var contentView: FrameLayout
     private var inputView: InputView? = null
     private var candidatesView: CandidatesView? = null
+
+    private var completionEditor = 0L
+    private val completion by lazy {
+        CompletionController(this, lifecycleScope, ::completionSnapshot,
+            { text, shown -> inputView?.showCompletion(text, shown) ?: false }, ::commitCompletion)
+    }
+    private fun completionSnapshot(): CompletionSnapshot? {
+        fun blocked(reason: String): CompletionSnapshot? {
+            CompletionPerf.record(this, org.json.JSONObject().put("phase", "gate").put("state", "skipped").put("reason", reason))
+            return null
+        }
+        if (!isInputViewShown) return blocked("ime_hidden")
+        if (inputView?.completionAvailable != true) return blocked("keyboard_hidden")
+        if (!SuzuContextPolicy.allows(currentInputEditorInfo)) return blocked("editor_policy")
+        if (composing.isNotEmpty() || composingText.isNotEmpty()) return blocked("composing")
+        if (selection.latest.isNotEmpty()) return blocked("selection")
+        if (!fcitx.runImmediately { inputMethodEntryCached.languageCode.startsWith("zh") }) return blocked("input_language")
+        if (fcitx.runImmediately { clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty() }) return blocked("preedit")
+        val connection = currentInputConnection ?: return blocked("no_connection")
+        return runCatching {
+            // First version completes at the end of an editor, avoiding duplication of text to the right.
+            if (!connection.getTextAfterCursor(1, 0).isNullOrEmpty()) return blocked("not_at_end")
+            val before = connection.getTextBeforeCursor(1024, 0)?.toString() ?: return blocked("unavailable_context")
+            val prefix = CompletionText.suffix(before, CompletionSettings.contextChars(this))
+            if (prefix.isBlank() || prefix.none { it in '\u3400'..'\u9fff' }) return blocked("empty_or_non_chinese")
+            CompletionSnapshot(prefix, selection.latest.start, completionEditor)
+        }.getOrNull()
+    }
+    fun cancelCompletion() { completion.invalidate() }
+    fun acceptCompletion() = completion.accept()
+    private fun commitCompletion(text: String) { commitText(text) }
+    private val completionPreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        lifecycleScope.launch {
+            completion.invalidate(clearContext = true)
+            val enabled = CompletionSettings.enabled(this@FcitxInputMethodService)
+            QwenCompletionEngine.setActive(this@FcitxInputMethodService, enabled && isInputViewShown)
+            if (enabled) {
+                QwenModelStore.download(this@FcitxInputMethodService)
+                completion.changed()
+            }
+        }
+    }
 
     private val navbarMgr = NavigationBarManager()
     private val inputDeviceMgr = InputDeviceManager { isVirtualKeyboard ->
@@ -253,6 +296,15 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
         }
         super.onCreate()
+        CompletionSettings.register(this, completionPreferenceListener)
+        if (CompletionSettings.enabled(this)) {
+            QwenModelStore.download(this)
+            QwenCompletionEngine.ensureLoaded(this)
+        }
+        lifecycleScope.launch {
+            QwenModelStore.state.collect { if (it.phase == "ready" && CompletionSettings.enabled(this@FcitxInputMethodService))
+                QwenCompletionEngine.ensureLoaded(this@FcitxInputMethodService) }
+        }
         lifecycleScope.launch {
             runCatching { withContext(Dispatchers.IO) { SuzuAssets.prepare(this@FcitxInputMethodService) } }
                 .onSuccess { (model, vocab) -> postFcitxJob { configureSuzu(model, vocab) } }
@@ -338,8 +390,10 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 }
             }
             is FcitxEvent.ClientPreeditEvent -> {
+                if (event.data.isNotEmpty()) completion.invalidate()
                 updateComposingText(event.data)
             }
+            is FcitxEvent.InputPanelEvent -> { if (event.data.preedit.isNotEmpty()) completion.invalidate() }
             is FcitxEvent.DeleteSurroundingEvent -> {
                 val (before, after) = event.data
                 handleDeleteSurrounding(before, after)
@@ -455,6 +509,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     fun commitText(text: String, cursor: Int = -1) {
+        completion.invalidate()
         val ic = currentInputConnection ?: return
         // when composing text equals commit content, finish composing text as-is
         if (composing.isNotEmpty() && composingText.toString() == text) {
@@ -468,6 +523,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 }
                 ic.finishComposingText()
             }
+            completion.changed()
             return
         }
         // committed text should replace composing (if any), replace selected range (if any),
@@ -485,6 +541,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 setSelection(target, target)
             }
         }
+        completion.changed()
     }
 
     fun pasteClipboardEntry(entry: org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry): Boolean {
@@ -616,6 +673,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onWindowShown() {
         super.onWindowShown()
+        inputView?.post { completion.changed() }
         highlightColor =
             styledColorOrDefault(android.R.attr.colorAccent, DefaultHighlightColor).alpha(0.4f)
         InputFeedbacks.syncSystemPrefs()
@@ -697,6 +755,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        completion.invalidate()
         // request to show floating CandidatesView when pressing physical keyboard
         if (inputDeviceMgr.evaluateOnKeyDown(event, this)) {
             postFcitxJob {
@@ -779,6 +838,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+        completionEditor++
+        completion.invalidate(clearContext = true)
         // update selection as soon as possible
         // sometimes when restarting input, onUpdateSelection happens before onStartInput, and
         // initialSel{Start,End} is outdated. but it's the client app's responsibility to send
@@ -811,6 +872,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
+        if (CompletionSettings.enabled(this)) QwenCompletionEngine.setActive(this, true)
         org.fcitx.fcitx5.android.data.clipboard.ScreenshotMonitor.refresh()
         Timber.d("onStartInputView: restarting=$restarting")
         postFcitxJob {
@@ -831,6 +893,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
             showStatusIcon(StatusIconMapping.fromEntry(fcitx.runImmediately { inputMethodEntryCached }))
         }
+        if (CompletionSettings.enabled(this)) QwenModelStore.observe(this)
+        completion.changed()
     }
 
     override fun onUpdateSelection(
@@ -852,6 +916,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             cursorUpdateIndex
         )
         inputView?.updateSelection(newSelStart, newSelEnd)
+        if (oldSelStart != newSelStart || oldSelEnd != newSelEnd || candidatesStart != -1 || candidatesEnd != -1) completion.changed()
     }
 
     private val contentSize = floatArrayOf(0f, 0f)
@@ -1104,6 +1169,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        QwenCompletionEngine.setActive(this, false)
+        completionEditor++
+        completion.invalidate(clearContext = true)
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
         decorLocationUpdated = false
         inputDeviceMgr.onFinishInputView()
@@ -1120,6 +1188,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onFinishInput() {
+        completionEditor++
+        completion.invalidate(clearContext = true)
         Timber.d("onFinishInput")
         postFcitxJob {
             setSuzuContext("", false, false)
@@ -1141,6 +1211,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onDestroy() {
+        CompletionSettings.unregister(this, completionPreferenceListener)
+        QwenCompletionEngine.setActive(this, false)
+        completion.invalidate(clearContext = true)
         recreateInputViewPrefs.forEach {
             it.unregisterOnChangeListener(recreateInputViewListener)
         }

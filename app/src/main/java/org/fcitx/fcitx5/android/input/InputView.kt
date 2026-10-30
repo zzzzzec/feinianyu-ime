@@ -14,6 +14,12 @@ import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsResponse
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.view.Gravity
+import android.view.ViewTreeObserver
+import android.text.TextUtils
+import org.fcitx.fcitx5.android.R
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.view.updateLayoutParams
@@ -107,6 +113,45 @@ class InputView(
     private val kawaiiBar = KawaiiBarComponent()
     private val horizontalCandidate = HorizontalCandidateComponent()
     private val keyboardWindow = KeyboardWindow()
+    private val completionText = TextView(service).apply {
+        id = R.id.completion_suggestion
+        gravity = Gravity.CENTER_VERTICAL
+        textSize = AppPrefs.getInstance().keyboard.candidateFontSize.getValue().toFloat()
+        setTextColor(theme.candidateTextColor)
+        setPadding(dp(16), 0, dp(8), 0)
+        maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+        setOnClickListener { service.acceptCompletion() }
+    }
+    private val completionUi = LinearLayout(service).apply {
+        orientation = LinearLayout.HORIZONTAL
+        visibility = GONE
+        setBackgroundColor(theme.barColor)
+        addView(completionText, LinearLayout.LayoutParams(0, -1, 1f))
+        addView(TextView(service).apply {
+            text = "×"; textSize = 24f; gravity = Gravity.CENTER
+            setTextColor(theme.candidateCommentColor)
+            contentDescription = service.getString(R.string.completion_dismiss)
+            setOnClickListener { service.cancelCompletion() }
+        }, LinearLayout.LayoutParams(dp(48), -1))
+    }
+    private var completionVersion = 0L
+    val completionAvailable get() = isShown && windowManager.isAttached(keyboardWindow)
+    fun showCompletion(text: String?, onShown: (() -> Boolean)?): Boolean {
+        val version = ++completionVersion
+        if (text == null || !completionAvailable) { completionUi.visibility = GONE; return false }
+        completionText.text = text
+        completionText.contentDescription = service.getString(R.string.completion_accept, text)
+        completionUi.visibility = VISIBLE
+        completionUi.bringToFront()
+        completionUi.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (completionUi.viewTreeObserver.isAlive) completionUi.viewTreeObserver.removeOnPreDrawListener(this)
+                if (version == completionVersion && onShown?.invoke() == false) completionUi.visibility = GONE
+                return true
+            }
+        })
+        return true
+    }
     private val symbolPicker = symbolPicker()
     private val emojiPicker = emojiPicker()
     private val emoticonPicker = emoticonPicker()
@@ -206,6 +251,7 @@ class InputView(
     init {
         // MUST call before any operation
         setupScope()
+        windowManager.onWindowChanged = { service.cancelCompletion() }
 
         // restore punctuation mapping in case of InputView recreation
         fcitx.launchOnReady {
@@ -234,6 +280,10 @@ class InputView(
                 centerHorizontally()
             })
             add(kawaiiBar.view, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
+                topOfParent()
+                centerHorizontally()
+            })
+            add(completionUi, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
                 topOfParent()
                 centerHorizontally()
             })

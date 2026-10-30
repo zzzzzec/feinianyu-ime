@@ -14,6 +14,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
+import androidx.core.view.doOnAttach
 import androidx.core.widget.TextViewCompat
 import org.fcitx.fcitx5.android.databinding.ActivitySettingsPageBinding
 import splitties.resources.drawable
@@ -25,18 +26,20 @@ abstract class SettingsPageActivity : AppCompatActivity() {
 
     protected fun settingsContent(@StringRes title: Int, followKeyboard: Boolean = false): LinearLayout {
         enableEdgeToEdge()
+        if (followKeyboard) window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         val binding = ActivitySettingsPageBinding.inflate(layoutInflater)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
             binding.root.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 leftMargin = bars.left; rightMargin = bars.right
             }
-            binding.toolbar.updatePadding(top = bars.top)
+            binding.root.updatePadding(top = bars.top)
             val bottom = if (followKeyboard) maxOf(bars.bottom, insets.getInsets(WindowInsetsCompat.Type.ime()).bottom) else bars.bottom
             binding.scroll.updatePadding(bottom = bottom)
             insets
         }
         setContentView(binding.root)
+        binding.root.doOnAttach { ViewCompat.requestApplyInsets(it) }
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply { setTitle(title); setDisplayHomeAsUpEnabled(true) }
         return binding.content
