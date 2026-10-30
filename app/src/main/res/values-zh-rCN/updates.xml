@@ -3,7 +3,7 @@
     <string name="personal_app_name">飞念语输入法</string>
     <string name="app_updates">应用更新</string>
     <string name="update_automatic">通过 Wi-Fi 自动下载更新</string>
-    <string name="update_check">检查更新</string>
+    <string name="update_check">检查并下载更新</string>
     <string name="update_checking">正在检查更新…</string>
     <string name="update_current">当前已是最新版本</string>
     <string name="update_current_version">当前版本：%1$s</string>

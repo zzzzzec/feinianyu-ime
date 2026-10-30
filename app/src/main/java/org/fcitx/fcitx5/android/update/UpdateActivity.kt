@@ -8,7 +8,11 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,6 +27,7 @@ class UpdateActivity : AppCompatActivity() {
     private var resumeInstall = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         title = getString(R.string.app_updates)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         val padding = (20 * resources.displayMetrics.density).toInt()
@@ -34,7 +39,8 @@ class UpdateActivity : AppCompatActivity() {
             this.text = text; textSize = size; setPadding(0, padding / 2, 0, padding / 2)
             content.addView(this, LinearLayout.LayoutParams(-1, -2))
         }
-        label(getString(R.string.update_current_version, BuildConfig.VERSION_NAME), 20f)
+        label(getString(R.string.app_updates), 22f)
+        label(getString(R.string.update_current_version, BuildConfig.VERSION_NAME), 18f)
         val automatic = Switch(this).apply {
             text = getString(R.string.update_automatic)
             isChecked = AppUpdater.automatic(this@UpdateActivity)
@@ -53,7 +59,13 @@ class UpdateActivity : AppCompatActivity() {
         content.addView(install)
         label(getString(R.string.update_changelog), 20f)
         notes = label("")
-        setContentView(ScrollView(this).apply { addView(content) })
+        val scroll = ScrollView(this).apply { addView(content) }
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
+            insets
+        }
+        setContentView(scroll)
         lifecycleScope.launch {
             AppUpdater.state.collect { state ->
                 status.text = state.message
@@ -66,7 +78,7 @@ class UpdateActivity : AppCompatActivity() {
                 notes.text = AppUpdater.pendingNotes(this@UpdateActivity)
                 status.text = getString(R.string.update_ready, AppUpdater.pendingName(this@UpdateActivity))
                 install.isEnabled = true
-            } else AppUpdater.check(this@UpdateActivity, manual = true)
+            } else AppUpdater.check(this@UpdateActivity, manual = false)
         }
     }
     private fun installUpdate() {

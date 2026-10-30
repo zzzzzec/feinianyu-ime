@@ -3,7 +3,7 @@
     <string name="personal_app_name">Feinianyu IME</string>
     <string name="app_updates">App updates</string>
     <string name="update_automatic">Download updates automatically over Wi-Fi</string>
-    <string name="update_check">Check for updates</string>
+    <string name="update_check">Check and download updates</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_current">You have the latest version</string>
     <string name="update_current_version">Installed version: %1$s</string>
