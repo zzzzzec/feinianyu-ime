@@ -1,162 +1,102 @@
-# fcitx5-android
+# 我们的 Android 输入法
 
-[Fcitx5](https://github.com/fcitx/fcitx5) input method framework and engines ported to Android.
+基于 [Fcitx5 Android](https://github.com/fcitx5-android/fcitx5-android) 开发的个人输入法。目标是在日常输入中积累由自己掌握的数据，并训练持续适应个人表达习惯的预测模型。
 
-## Download
+先做一个愿意每天使用、可以可靠采集训练样本的输入法，再用真实数据验证现代模型的收益。
 
-[<img src="https://github.com/rubenpgrady/get-it-on-github/raw/refs/heads/main/get-it-on-github.png" alt="Git it on GitHub" width="207" height="80">](https://github.com/fcitx5-android/fcitx5-android/releases/latest)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" width="207" height="80">](https://f-droid.org/packages/org.fcitx.fcitx5.android)
-[<img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="207" height="80">](https://play.google.com/store/apps/details?id=org.fcitx.fcitx5.android)
+## 当前状态
 
-You can also download the **latest CI build** on our Jeninks server: [![build status](https://img.shields.io/jenkins/build.svg?jobUrl=https://jenkins.fcitx-im.org/job/android/job/fcitx5-android/)](https://jenkins.fcitx-im.org/job/android/job/fcitx5-android/)
+- 已选定 Fcitx5 Android 作为底座，保留上游 Git 历史、源码和许可证。
+- 原项目 README 原样保存在 [old.md](old.md)，其中包含上游介绍、截图和构建说明。
+- 本次初始化只整理项目说明；个人数据采集、模型训练和模型接入均尚未实现。
+- 尚未完成本项目 APK 构建或 Samsung Galaxy S25 Edge 真机验收。
 
-> [!NOTE]
-> APKs downloaded from GitHub Release/F-Droid/Jenkins have the same signature, which means they're compatible when upgrading, but Google Play's do not.
-> <details>
-> <summary>(click here for detailed signature info)</summary>
-> <ul>
-> <li>Package Name: <code>org.fcitx.fcitx5.android</code></li>
-> <li>Certificate SHA-256 fingerprint:</li>
-> <ul>
-> <li>GitHub Release/Jenkins/F-Droid</li>
-> <code>E4:DB:1E:9E:DF:F1:36:29:D0:7D:E4:BB:F8:16:5F:E9:BD:85:57:AB:55:09:26:72:DA:8E:40:DB:E4:84:EC:D7</code>
-> <li>Google Play</li>
-> <code>06:53:6F:F6:E8:76:C0:14:E1:4B:44:6F:61:FA:2B:80:9E:06:67:39:A1:D1:17:0D:0A:7A:89:88:4C:48:00:33</code>
-> </ul>
-> </ul>
-> </details>
+## 使用场景
 
-In case you want Fcitx5 on other platforms: [macOS](https://github.com/fcitx-contrib/fcitx5-macos), [iOS](https://github.com/fcitx-contrib/fcitx5-ios), [HarmonyOS](https://github.com/fcitx-contrib/fcitx5-harmony), [ChromeOS](https://github.com/fcitx-contrib/fcitx5-chrome), [Windows](https://github.com/fcitx-contrib/fcitx5-windows); or [try Fcitx5 in the browser](https://fcitx-contrib.github.io/online/index.html)
+- 首要设备：Samsung Galaxy S25 Edge，Android。
+- 首要输入方式：中文 26 键键盘，同时保留英文、数字、标点和中英文混输能力。
+- 以用户自己的日常输入为学习来源，积累可导出、可删除、可迁移的个人数据。
+- 先保证基础输入、剪贴板和编辑手感，再迭代预测模型。
 
-## Project status
+## 必须具备的功能
 
-### Supported Languages
+### 1. 剪贴板历史
 
-- English (with spell check)
-- Chinese
-  - Pinyin, Shuangpin, Wubi, Cangjie and custom tables (built-in, powered by [fcitx5-chinese-addons](https://github.com/fcitx/fcitx5-chinese-addons))
-  - Zhuyin/Bopomofo (via [Chewing Plugin](./plugin/chewing))
-  - Jyutping (via [Jyutping Plugin](./plugin/jyutping/), powered by [libime-jyutping](https://github.com/fcitx/libime-jyutping))
-- Vietnamese (via [UniKey Plugin](./plugin/unikey), supports Telex, VNI and VIQR)
-- Japanese (via [Anthy Plugin](./plugin/anthy))
-- Korean (via [Hangul Plugin](./plugin/hangul))
-- Sinhala (via [Sayura Plugin](./plugin/sayura))
-- Thai (via [Thai Plugin](./plugin/thai))
-- Generic (via [RIME Plugin](./plugin/rime), supports importing custom schemas)
+- 保留上游已有的纯文本剪贴板历史及持久化存储。
+- 支持查看历史、点击粘贴、置顶、删除和清空，并能配置记录数量。
+- 提供记录开关，不能因为升级或重启无故丢失已保留的内容。
+- 剪贴板作为独立功能保存；复制或粘贴的文字不能默认当作用户本人创作的训练样本。
 
-### Implemented Features
+### 2. 文本编辑面板
 
-- Virtual Keyboard (layout not customizable yet)
-- Expandable candidate view
-- Clipboard management (plain text only)
-- Theming (custom color scheme, background image and dynamic color aka monet color after Android 12)
-- Popup preview on key press
-- Long press popup keyboard for convenient symbol input
-- Symbol and Emoji picker
-- Plugin System for loading addons from other installed apk
-- Floating candidates panel when using physical keyboard
+- 必须可以方便地全选、复制、剪切、粘贴和删除文字。
+- 支持上下左右移动光标、选择文本、跳转行首和行尾。
+- 编辑功能应在常用原生应用和浏览器输入框中验证，记录具体兼容性差异。
+- 保留从键盘工具栏进入编辑面板和剪贴板的便捷入口。
 
-### Planned Features
+### 3. 日用输入
 
-- Customizable keyboard layout
-- More input methods (via plugin)
+- 保留中文 26 键、候选词选择和展开、英文、数字、符号及表情输入。
+- 保留上游现有输入能力作为可用基线，模型不可用时仍能正常打字。
+- 后续开发使用独立应用包名和自己的签名，使本项目可以与 Gboard、上游 Fcitx5 并存。
+- 真机检查键盘尺寸、导航栏避让、横竖屏、按键反馈、光标和选区行为。
 
-## Screenshots
+## 第一阶段重点：个人输入数据采集
 
-|拼音, Material Light theme, key border enabled|自然码双拼, Pixel Dark theme, key border disabled|
-|:-:|:-:|
-|<img src="https://github.com/fcitx5-android/fcitx5-android/assets/13914967/bd429247-62d9-4c78-bab8-70ef3ce47588" width="360px">|<img src="https://github.com/fcitx5-android/fcitx5-android/assets/13914967/3ae969c1-7ed0-4f92-a5df-19dc8c90a8c3" width="360px">|
+增加独立的本地采集模块，保留事件之间的关联，支持从输入过程重建有意义的训练样本。
 
-|Emoji picker, Pixel Light theme, key border enabled|Symbol picker, Material Dark theme, key border disabled|
-|:-:|:-:|
-|<img src="https://user-images.githubusercontent.com/13914967/202181845-6a5f6bb2-a877-468c-851a-fd7e66e64ed4.png" width="360px">|<img src="https://user-images.githubusercontent.com/13914967/202181861-dd253439-1d5e-4f5f-9535-934f28796a6b.png" width="360px">|
+### 应记录的训练信号
 
-## Get involved
+- 当前输入的拼音或按键序列，以及输入模式。
+- 当时实际展示的候选文本、顺序和用户选中的候选。
+- 区分主动点击候选、翻页后选择和空格接受默认候选。
+- 最终上屏文本，以及能够关联到该次输入的删除、替换和纠错。
+- 预测时实际可用的有限前文，避免把未来文本混入模型输入。
+- 标记手动输入、剪贴板粘贴、补全接受等不同来源。
+- 记录样本所需的时间、会话边界、引擎及模型版本，便于复现和比较。
 
-Trello kanban: https://trello.com/b/gftk6ZdV/kanban
+上屏不代表已经发送，删除也不一定表示预测错误。采集模块应保留这些区别，不把猜测直接写成监督标签；无法可靠关联的纠错不能强行配对。
 
-Matrix Room: https://matrix.to/#/#fcitx5-android:mozilla.org
+### 数据控制
 
-Discuss on Telegram: [@fcitx5_android_group](https://t.me/fcitx5_android_group) ([@fcitx5_android](https://t.me/fcitx5_android) originally)
+- 数据默认保存在手机本地；上传到自己的训练设备或服务器应有明确开关和说明。
+- 支持暂停采集、按应用关闭采集、导出和删除个人样本。
+- 密码输入框禁采，并尊重应用声明的禁止个性化学习标记。
+- 剪贴板历史和训练样本分别管理，不能把整份剪贴板自动导入训练集。
+- 采集当前输入所需的上下文，不抓取整个应用页面或历史对话。
+- 真实个人语料、数据库、模型私密产物、凭据和签名私钥不得提交到 Git 仓库；调试日志不得直接输出原始输入内容。
 
-## Build
+## 模型方向
 
-### Dependencies
+核心任务是根据“前文 + 当前尚未输入完成的拼音 + 个人信息”，预测用户准备输入的词句。
 
-- Android SDK Platform & Build-Tools 35.
-- Android NDK (Side by side) 25 & CMake 3.22.1, they can be installed using SDK Manager in Android Studio or `sdkmanager` command line.
-- [KDE/extra-cmake-modules](https://github.com/KDE/extra-cmake-modules)
-- GNU Gettext >= 0.20 (for `msgfmt` binary; or install `appstream` if you really have to use gettext <= 0.19.)
+- 从现代可部署的小语言模型及任务专项训练出发，词频调整作为基础能力和对照。
+- 拼音转换候选与主动续写建议应有明确区别，不能无提示地扩写或改写用户输入。
+- 候选模型包括 Qwen3.5-0.8B、LFM2.5-1.2B 等；具体选择以中文输入任务和真机测量为准，当前不锁定模型。
+- 个人记忆可以即时更新；模型参数更新可以采用 LoRA 等个人适配方式，更新频率与训练位置待实验确定。
+- 手机本地预测优先；训练可在用户控制的电脑或服务器上进行，随后同步个人适配参数。
+- 研究手机端增量训练，但不把每次按键都进行反向传播作为既定要求。
 
-### How to set up development environment
+即时记忆更新、统计更新和模型权重训练必须分别说明，不能把记录词频称作已经训练了语言模型。
 
-<details>
-<summary>Prerequisites for Windows</summary>
+## 实施顺序与验收
 
-- Enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development) so that symlinks can be created without administrator privilege.
+1. **建立可用基线**：构建可安装版本，在 S25 Edge 验证中文 26 键、剪贴板历史和文本编辑；确认可与 Gboard 并存。
+2. **实现采集与导出**：用人工构造的样本验证输入、候选、上屏、纠错和粘贴来源能正确关联，检查禁采和删除行为，再开始日常积累。
+3. **建立离线评测**：按时间划分训练集和后续测试集，比较原引擎与个人化模型，避免用训练过的句子证明效果。
+4. **接入预测模型**：比较首选及前几候选命中率、所需选词次数、退格次数、补全接受率，以及候选更新延迟、内存、耗电和发热。
+5. **持续个性化**：验证新数据带来的改善，并保留模型版本、回退能力和原输入引擎基线。
 
-- Enable symlink support for `git`:
+“模型能加载”不能代替输入法验收；最终以真实设备持续输入时的准确率和手感为准。
 
-    ```shell
-    git config --global core.symlinks true
-    ```
+## 仓库与开发
 
-</details>
+- 私有开发仓库：`zzzzzec/fcitx5-android`。
+- `origin` 指向我们的私有仓库；`upstream` 指向原始 Fcitx5 Android 项目。
+- 导入的上游基线：`eb5b50216e70484a009933d9519db76005f1faf3`，分支为 `master`。
+- GitHub 公开仓库的原生 fork 不能单独设为私有，因此本仓库以保留上游历史的独立私有仓库形式建立。
+- 初始化阶段暂不启用继承的 GitHub Actions；后续构建与发布流程需要按本项目配置。
+- 原始构建说明见 [old.md](old.md#build)；实际工具链版本以 [Versions.kt](build-logic/convention/src/main/kotlin/Versions.kt) 为准。
+- 子模块仍指向各自的公开上游；克隆后按需执行 `git submodule update --init --recursive`。
 
-First, clone this repository and fetch all submodules:
-
-```shell
-git clone git@github.com:fcitx5-android/fcitx5-android.git
-git submodule update --init --recursive
-```
-
-Install `extra-cmake-modules` and `gettext` with your system package manager:
-
-```shell
-# For Arch Linux (Arch has gettext in it's base meta package)
-sudo pacman -S extra-cmake-modules
-
-# For Debian/Ubuntu
-sudo apt install extra-cmake-modules gettext
-
-# For macOS
-brew install extra-cmake-modules gettext
-
-# For Windows, install MSYS2 and execute in its shell (UCRT64)
-pacman -S mingw-w64-ucrt-x86_64-extra-cmake-modules mingw-w64-ucrt-x86_64-gettext
-# then add C:\msys64\ucrt64\bin to PATH
-```
-
-Install Android SDK Platform, Android SDK Build-Tools, Android NDK and cmake via SDK Manager in Android Studio:
-
-<details>
-<summary>Detailed steps (screenshots)</summary>
-
-**Note:** These screenshots are for references and the versions in them may be out of date.
-The current recommended versions are recorded in [Versions.kt](build-logic/convention/src/main/kotlin/Versions.kt) file.
-
-![Open SDK Manager](https://user-images.githubusercontent.com/13914967/202184493-3ee1546b-0a83-4cc9-9e41-d20b0904a0cf.png)
-
-![Install SDK Platform](https://user-images.githubusercontent.com/13914967/202184534-340a9e7c-7c42-49bd-9cf5-1ec9dcafcf32.png)
-
-![Install SDK Build-Tools](https://user-images.githubusercontent.com/13914967/202185945-0c7a9f39-1fcc-4018-9c81-b3d2bf1c2d3f.png)
-
-![Install NDK](https://user-images.githubusercontent.com/13914967/202185601-0cf877ea-e148-4b88-bd2f-70533189b3d4.png)
-
-![Install CMake](https://user-images.githubusercontent.com/13914967/202184655-3c1ab47c-432f-4bd7-a508-92096482de50.png)
-
-</details>
-
-### Trouble-shooting
-
-- Android Studio indexing takes forever to complete and cosumes a lot of memory.
-
-    Switch to "Project" view in the "Project" tool window (namely the file tree side bar), right click `lib/fcitx5/src/main/cpp/prebuilt` directory, then select "Mark Directory as > Excluded". You may also need to restart the IDE to interrupt ongoing indexing process.
-
-- Gradle error: "No variants found for ':app'. Check build files to ensure at least one variant exists." or "[CXX1210] <whatever>/CMakeLists.txt debug|arm64-v8a : No compatible library found"
-
-    Examine if there are environment variables set such as `_JAVA_OPTIONS` or `JAVA_TOOL_OPTIONS`. You might want to clear them (maybe in the startup script `studio.sh` of Android Studio), as some gradle plugin treats anything in stderr as errors and aborts.
-
-## Nix
-
-Appropriate Android SDK with NDK is available in the development shell.  The `gradlew` should work out-of-the-box, so you can install the app to your phone with `./gradlew installDebug` after applying the patch mentioned above. For development, you may want to install the unstable version of Android Studio, and point the project SDK path to `$ANDROID_SDK_ROOT` defined in the shell. Notice that Android Studio may generate wrong `local.properties` which sets the SDK location to `~/Android/SDK` (installed by SDK Manager). In such case, you need specify `sdk.dir` as the project SDK in that file manually, in case Android Studio sticks to the wrong global SDK.
+本项目沿用上游许可证和各文件的版权声明，详见 [LICENSE](LICENSE)。私人开发和仓库可见性不改变这些许可证条款。
