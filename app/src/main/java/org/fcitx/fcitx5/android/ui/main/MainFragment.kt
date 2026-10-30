@@ -85,10 +85,10 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
             }
             addCategory("Android") {
-                addPreference(R.string.ranking_diagnostics) {
+                addPreference(R.string.ranking_diagnostics, icon = R.drawable.ic_baseline_sort_24) {
                     startActivity(Intent(requireContext(), org.fcitx.fcitx5.android.diagnostics.RankingDiagnosticsActivity::class.java))
                 }
-                addPreference(R.string.app_updates) {
+                addPreference(R.string.app_updates, icon = R.drawable.ic_baseline_system_update_24) {
                     startActivity(Intent(requireContext(), UpdateActivity::class.java))
                 }
                 addDestinationPreference(

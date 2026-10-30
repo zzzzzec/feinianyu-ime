@@ -5,13 +5,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
+import android.view.Menu
 import android.widget.*
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
+import androidx.appcompat.widget.AppCompatEditText
+import androidx.appcompat.widget.AppCompatSpinner
 import androidx.lifecycle.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -21,6 +19,9 @@ import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.ui.main.LogActivity
+import org.fcitx.fcitx5.android.ui.common.SettingsPageActivity
+import org.fcitx.fcitx5.android.utils.item
+import splitties.resources.styledColor
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -28,7 +29,7 @@ import java.util.Locale
 
 class RankingExportState : ViewModel() { var pending: String? = null }
 
-class RankingDiagnosticsActivity : AppCompatActivity() {
+class RankingDiagnosticsActivity : SettingsPageActivity() {
     private lateinit var connection: FcitxConnection
     private lateinit var status: TextView
     private lateinit var detail: TextView
@@ -52,76 +53,66 @@ class RankingDiagnosticsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         exportState = ViewModelProvider(this)[RankingExportState::class.java]
         connection = FcitxDaemon.connect(javaClass.name)
-        title = getString(R.string.ranking_diagnostics)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        val padding = (16 * resources.displayMetrics.density).toInt()
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding, padding, padding, padding)
-        }
-        fun label(value: String, size: Float = 15f) = TextView(this).apply {
-            text = value; textSize = size; setPadding(0, padding / 2, 0, padding / 2)
-            content.addView(this, LinearLayout.LayoutParams(-1, -2))
-        }
-        label(getString(R.string.ranking_diagnostics), 22f)
-        content.addView(Switch(this).apply {
-            text = getString(R.string.ranking_record)
-            isChecked = RankingDiagnosticsSettings.enabled(this@RankingDiagnosticsActivity)
-            setOnCheckedChangeListener { _, checked ->
+        val content = settingsContent(R.string.ranking_diagnostics, followKeyboard = true)
+        with(content) {
+            switchRow(R.string.ranking_record, RankingDiagnosticsSettings.enabled(this@RankingDiagnosticsActivity)) { checked ->
                 RankingDiagnosticsSettings.setEnabled(this@RankingDiagnosticsActivity, checked)
                 lifecycleScope.launch { connection.runOnReady { setSuzuDiagnostics(checked) }; refresh() }
             }
-        })
-        label(getString(R.string.ranking_retention), 13f)
-        val actions = LinearLayout(this)
-        content.addView(actions)
-        fun button(title: Int, action: () -> Unit) {
-            actions.addView(Button(this).apply { setText(title); setOnClickListener { action() } }, LinearLayout.LayoutParams(0, -2, 1f))
+            label(getString(R.string.ranking_retention), secondary = true)
+            actionRow(R.string.ranking_export, R.drawable.ic_baseline_save_24) { exportRecords() }
+            section(R.string.ranking_test_input)
         }
-        button(R.string.ranking_refresh) { lifecycleScope.launch { refresh() } }
-        button(R.string.clear) { lifecycleScope.launch { connection.runOnReady { clearSuzuDiagnostics() }; refresh() } }
-        button(R.string.ranking_export) {
-            lifecycleScope.launch {
-                runCatching {
-                    exportState.pending = RankingDiagnosticsExport.create(connection.runOnReady { suzuDiagnostics() })
-                    export.launch("feinianyu-ranking-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())}.json")
-                }.onFailure { message(getString(R.string.ranking_error, it.localizedMessage)) }
-            }
-        }
-        content.addView(EditText(this).apply {
+        content.addView(AppCompatEditText(this).apply {
             hint = getString(R.string.ranking_try_input)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            textSize = 16f
             maxLines = 3
             id = View.generateViewId()
-        }, LinearLayout.LayoutParams(-1, -2))
-        status = label("")
-        history = Spinner(this)
-        content.addView(history, LinearLayout.LayoutParams(-1, -2))
+        }, LinearLayout.LayoutParams(-1, -2).apply {
+            marginStart = dp(16); marginEnd = dp(16)
+        })
+        with(content) {
+            status = label("", secondary = true)
+            section(R.string.ranking_recent_records)
+        }
+        history = AppCompatSpinner(this)
+        content.addView(history, LinearLayout.LayoutParams(-1, -2).apply {
+            marginStart = dp(16); marginEnd = dp(16)
+        })
         history.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { showRecord(position) }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
-        detail = label(getString(R.string.ranking_empty))
-        detail.setTextIsSelectable(true)
-        content.addView(Button(this).apply {
-            setText(R.string.real_time_logs)
-            setOnClickListener { startActivity(Intent(this@RankingDiagnosticsActivity, LogActivity::class.java)) }
-        })
-        val scroll = ScrollView(this).apply { addView(content); isFillViewport = true }
-        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
-            view.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
-            insets
+        with(content) {
+            detail = label(getString(R.string.ranking_empty)).apply { textSize = 14f; setTextIsSelectable(true) }
+            actionRow(R.string.real_time_logs, R.drawable.ic_baseline_developer_mode_24) {
+                startActivity(Intent(this@RankingDiagnosticsActivity, LogActivity::class.java))
+            }
         }
-        setContentView(scroll)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 connection.runOnReady { setSuzuDiagnostics(RankingDiagnosticsSettings.enabled(this@RankingDiagnosticsActivity)) }
                 while (true) { refresh(); delay(1000) }
             }
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        val tint = styledColor(android.R.attr.colorControlNormal)
+        menu.item(R.string.ranking_refresh, R.drawable.ic_baseline_sync_24, tint, true) { lifecycleScope.launch { refresh() } }
+        menu.item(R.string.clear) { lifecycleScope.launch { connection.runOnReady { clearSuzuDiagnostics() }; refresh() } }
+        return true
+    }
+
+    private fun exportRecords() {
+        lifecycleScope.launch {
+            runCatching {
+                exportState.pending = RankingDiagnosticsExport.create(connection.runOnReady { suzuDiagnostics() })
+                export.launch("feinianyu-ranking-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())}.json")
+            }.onFailure { message(getString(R.string.ranking_error, it.localizedMessage)) }
         }
     }
 
@@ -137,9 +128,9 @@ class RankingDiagnosticsActivity : AppCompatActivity() {
             val followLatest = history.selectedItemPosition <= 0
             val selected = records.getOrNull(history.selectedItemPosition)?.optLong("id")
             records = updated
-            history.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, records.map {
+            history.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, records.map {
                 "${clock.format(Date(it.getLong("timestamp_ms")))}  ${it.getString("input")} · ${reason(it.getString("reason"))}"
-            })
+            }).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
             val index = if (followLatest) 0 else records.indexOfFirst { it.optLong("id") == selected }.coerceAtLeast(0)
             history.setSelection(index)
             showRecord(index)
@@ -175,6 +166,5 @@ class RankingDiagnosticsActivity : AppCompatActivity() {
         return if (name == 0) code else getString(name)
     }
     private fun message(text: String) { Toast.makeText(this, text, Toast.LENGTH_LONG).show() }
-    override fun onSupportNavigateUp(): Boolean { finish(); return true }
     override fun onDestroy() { FcitxDaemon.disconnect(javaClass.name); super.onDestroy() }
 }

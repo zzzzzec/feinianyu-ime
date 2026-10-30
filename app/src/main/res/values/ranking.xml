@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="ranking_diagnostics">Ranking diagnostics</string>
+    <string name="ranking_test_input">Test input</string>
+    <string name="ranking_recent_records">Recent records</string>
     <string name="ranking_record">Record ranking results</string>
-    <string name="ranking_retention">Keeps the latest 50 records in memory, including context and candidates. Cleared when the input engine restarts. Password and sensitive fields omit text.</string>
+    <string name="ranking_retention">Latest 50 records until the input engine restarts. Exports include context and candidates.</string>
     <string name="ranking_refresh">Refresh</string>
     <string name="ranking_export">Export JSON</string>
     <string name="ranking_exported">Log exported</string>
     <string name="ranking_error">Error: %1$s</string>
-    <string name="ranking_try_input">Type here, or return after typing in another app</string>
-    <string name="ranking_empty">Enable recording, then type with Pinyin. Select a record here to inspect ranking.</string>
+    <string name="ranking_try_input">Type to inspect candidate ranking</string>
+    <string name="ranking_empty">Type with Pinyin, then select a record here to inspect ranking.</string>
     <string name="ranking_status">Suzu-2.4: %1$s\nScored %2$d · Reordered %3$d · Timed out %4$d</string>
     <string name="ranking_result">Result: %1$s</string>
     <string name="ranking_input">Input: %1$s</string>

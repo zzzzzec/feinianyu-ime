@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="ranking_diagnostics">排序诊断</string>
+    <string name="ranking_test_input">测试输入</string>
+    <string name="ranking_recent_records">最近记录</string>
     <string name="ranking_record">记录排序结果</string>
-    <string name="ranking_retention">临时保留最近 50 次记录，含上文和候选词；重启输入引擎后清空。密码等敏感输入不记录文本。</string>
+    <string name="ranking_retention">最近 50 次，重启输入引擎后清空。导出文件含上文和候选词。</string>
     <string name="ranking_refresh">刷新</string>
     <string name="ranking_export">导出 JSON</string>
     <string name="ranking_exported">日志已导出</string>
     <string name="ranking_error">出错：%1$s</string>
-    <string name="ranking_try_input">在这里输入，或到其他应用输入后返回</string>
-    <string name="ranking_empty">打开记录开关，再用拼音输入。返回这里选择记录，查看排序结果。</string>
+    <string name="ranking_try_input">输入一段文字，查看候选排序</string>
+    <string name="ranking_empty">用拼音输入后，可在这里选择记录查看排序结果。</string>
     <string name="ranking_status">Suzu-2.4：%1$s\n已评分 %2$d 次 · 改序 %3$d 次 · 超时 %4$d 次</string>
     <string name="ranking_result">结果：%1$s</string>
     <string name="ranking_input">拼音：%1$s</string>

@@ -2,7 +2,7 @@
 
 基于 Fcitx5 Android 的中文输入法，内置 Suzu-2.4 小模型，利用输入上文重排拼音候选。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.2.1.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.2.2.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 
@@ -29,6 +29,15 @@
 
 手机通常使用 Release 中的 `arm64-v8a.apk`；`x86_64.apk` 供模拟器使用。
 首次安装后按应用引导启用输入法，并在输入法列表中添加“拼音”。
+
+### 导入拼音词库
+
+入口为 **输入法 → 拼音右侧齿轮 → 管理词库 → 右下角＋**。
+支持搜狗 `.scel`、LibIME `.dict` 和 LibIME 文本格式 `.txt`，导入后勾选启用。
+基础中文词库已内置；词库管理页没有条目时，表示尚未安装附加词库。
+文本词库需包含词语及对应拼音，纯词语列表需要先转换格式。
+
+### 键盘与更新
 
 “虚拟键盘”页面可调整：
 
