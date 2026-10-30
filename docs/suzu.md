@@ -80,7 +80,7 @@
 
 ### 待比较的公开 P2C 实现
 
-- [Transformers4IME / PinyinGPT](https://github.com/VisualJoyce/Transformers4IME)：论文、代码及预训练模型入口，覆盖全拼、简拼与混合输入研究；不能据此假定任意错拼都能处理。
+- [Transformers4IME / PinyinGPT](https://github.com/VisualJoyce/Transformers4IME)：ACL 2022、GPT-2 路线的历史研究基线，有代码及预训练模型入口。论文假设已提供正确的拼音切分，主实验研究正确全拼与纯首字母简拼，切分集成和混拼被列为后续工作；仓库另列有混合训练模式，不能把代码选项等同于经过论文验收的能力。论文未采用实际按键成本或人工评价，也不能证明原始连续字母错拼和手机实时链路已经可用。仅作为条件受限的历史对照，不作为当前手机集成的优先方案。
 - [Duyu/Pinyin2Hanzi-Transformer](https://huggingface.co/Duyu/Pinyin2Hanzi-Transformer)：公开约 62M 参数权重和推理代码，模型卡标注长度限制 14，输入需遵循其音节表示；尚未验证原始错拼、候选列表与手机延迟。
 - 两者目前仅是对照候选，未集成、未在本项目运行，也没有替换现有输入引擎。
 
