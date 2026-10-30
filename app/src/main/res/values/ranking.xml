@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ranking_diagnostics">Ranking diagnostics</string>
+    <string name="ranking_record">Record ranking results</string>
+    <string name="ranking_retention">Keeps the latest 50 records in memory, including context and candidates. Cleared when the input engine restarts. Password and sensitive fields omit text.</string>
+    <string name="ranking_refresh">Refresh</string>
+    <string name="ranking_export">Export JSON</string>
+    <string name="ranking_exported">Log exported</string>
+    <string name="ranking_error">Error: %1$s</string>
+    <string name="ranking_try_input">Type here, or return after typing in another app</string>
+    <string name="ranking_empty">Enable recording, then type with Pinyin. Select a record here to inspect ranking.</string>
+    <string name="ranking_status">Suzu-2.4: %1$s\nScored %2$d · Reordered %3$d · Timed out %4$d</string>
+    <string name="ranking_result">Result: %1$s</string>
+    <string name="ranking_input">Input: %1$s</string>
+    <string name="ranking_context">Context: %1$s</string>
+    <string name="ranking_timing">Wait: %1$s ms · Inference: %2$s ms</string>
+    <string name="ranking_top_protected">Original first candidate retained: improvement below 2.5.</string>
+    <string name="ranking_order">Before: %1$s\nAfter: %2$s</string>
+    <string name="ranking_scores">Model %1$s − rank prior %2$s = final %3$s</string>
+    <string name="ranking_reason_ready">Ready</string>
+    <string name="ranking_reason_loading">Loading model</string>
+    <string name="ranking_reason_unconfigured">Model not configured</string>
+    <string name="ranking_reason_error">Model failed to load</string>
+    <string name="ranking_reason_reordered">Ranked; order changed</string>
+    <string name="ranking_reason_unchanged">Ranked; order retained</string>
+    <string name="ranking_reason_no_context">No preceding text</string>
+    <string name="ranking_reason_short_context">No context tokens</string>
+    <string name="ranking_reason_disabled">Ranking disabled</string>
+    <string name="ranking_reason_not_pinyin">Not Pinyin</string>
+    <string name="ranking_reason_prediction">Prediction candidates</string>
+    <string name="ranking_reason_special_mode">Special input mode</string>
+    <string name="ranking_reason_unsupported_list">Unsupported list or page</string>
+    <string name="ranking_reason_unsupported_length">Unsupported candidate length</string>
+    <string name="ranking_reason_few_comparable_candidates">Fewer than two comparable candidates</string>
+    <string name="ranking_reason_different_length">Different length from first candidate</string>
+    <string name="ranking_reason_not_chinese">Not a Chinese candidate</string>
+    <string name="ranking_reason_out_of_vocab">Candidate contains an out-of-vocabulary character</string>
+    <string name="ranking_reason_timeout">Exceeded 40 ms wait; original order retained</string>
+    <string name="ranking_reason_busy">Model busy; original order retained</string>
+    <string name="ranking_reason_context_cleared">Context cleared</string>
+    <string name="ranking_reason_inference_error">Inference failed</string>
+    <string name="ranking_reason_nonfinite_score">Invalid model score</string>
+    <string name="ranking_reason_private_input">Sensitive input: text omitted</string>
+    <string name="ranking_reason_not_scored">Not scored</string>
+</resources>

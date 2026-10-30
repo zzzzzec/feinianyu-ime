@@ -81,8 +81,12 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     override suspend fun configureSuzu(modelPath: String, vocabPath: String) =
         withFcitxContext { configureSuzuNative(modelPath, vocabPath) }
 
-    override suspend fun setSuzuContext(context: String, enabled: Boolean) =
-        withFcitxContext { setSuzuContextNative(context, enabled) }
+    override suspend fun setSuzuContext(context: String, enabled: Boolean, allowDiagnosticText: Boolean) =
+        withFcitxContext { setSuzuContextNative(context, enabled, allowDiagnosticText) }
+
+    override suspend fun setSuzuDiagnostics(enabled: Boolean) = withFcitxContext { setSuzuDiagnosticsNative(enabled) }
+    override suspend fun clearSuzuDiagnostics() = withFcitxContext { clearSuzuDiagnosticsNative() }
+    override suspend fun suzuDiagnostics() = withFcitxContext { suzuDiagnosticsNative() }
 
     override suspend fun suzuStatus() = withFcitxContext { suzuStatusNative() }
 
@@ -217,7 +221,13 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         @JvmStatic
         private external fun configureSuzuNative(modelPath: String, vocabPath: String)
         @JvmStatic
-        private external fun setSuzuContextNative(context: String, enabled: Boolean)
+        private external fun setSuzuContextNative(context: String, enabled: Boolean, allowDiagnosticText: Boolean)
+        @JvmStatic
+        private external fun setSuzuDiagnosticsNative(enabled: Boolean)
+        @JvmStatic
+        private external fun clearSuzuDiagnosticsNative()
+        @JvmStatic
+        private external fun suzuDiagnosticsNative(): String
         @JvmStatic
         private external fun suzuStatusNative(): String
 

@@ -372,11 +372,16 @@ void AndroidFrontend::configureSuzu(const std::string &model, const std::string 
     suzu_.configure(model, vocab);
 }
 
-void AndroidFrontend::setSuzuContext(const std::string &context, bool enabled) {
+void AndroidFrontend::setSuzuContext(const std::string &context, bool enabled, bool allowDiagnosticText) {
     if ((!enabled && suzuEnabled_) || (context.empty() && !suzuContext_.empty())) suzu_.clearContext();
-    suzuContext_ = enabled ? context : "";
+    suzuContext_ = allowDiagnosticText ? context : "";
     suzuEnabled_ = enabled;
+    allowDiagnosticText_ = allowDiagnosticText;
 }
+
+void AndroidFrontend::setSuzuDiagnostics(bool enabled) { diagnostics_.setEnabled(enabled); }
+void AndroidFrontend::clearSuzuDiagnostics() { diagnostics_.clear(); }
+std::string AndroidFrontend::suzuDiagnostics() { return diagnostics_.snapshot(suzuStatus()); }
 
 std::string AndroidFrontend::suzuStatus() {
     auto status = suzu_.status();
@@ -385,48 +390,110 @@ std::string AndroidFrontend::suzuStatus() {
 }
 
 void AndroidFrontend::rerankCandidates() {
-    if (!activeIC_ || !suzuEnabled_ || suzuContext_.empty()) return;
-    auto *entry = instance_->inputMethodEntry(activeIC_);
-    if (!entry || entry->uniqueName() != "pinyin") return;
-    const auto flags = activeIC_->capabilityFlags();
-    if (flags.test(CapabilityFlag::Password) || flags.test(CapabilityFlag::Sensitive)) return;
+    if (!activeIC_) return;
     auto &panel = activeIC_->inputPanel();
-    // Only composing candidates. Leave prediction, punctuation and special modes alone.
-    if (panel.preedit().empty() || !panel.auxUp().empty() || !panel.auxDown().empty()) return;
     auto list = panel.candidateList();
-    if (!list || rankedList_.lock() == list) return;
+    if (!list || list->empty() || rankedList_.lock() == list) return;
+    const bool capture = diagnostics_.enabled() && diagnosedList_.lock() != list;
+    if (capture) diagnosedList_ = list;
+    RankingTrace trace;
+    auto finish = [&](const std::string &reason) {
+        if (capture) { trace.reason = reason; diagnostics_.add(std::move(trace)); }
+    };
+    const auto flags = activeIC_->capabilityFlags();
+    // Includes numeric passwords and no-personalized-learning fields, even when
+    // the engine doesn't expose those through its own Password capability.
+    if (!allowDiagnosticText_ || flags.test(CapabilityFlag::Password) || flags.test(CapabilityFlag::Sensitive)) {
+        finish("private_input"); return;
+    }
+    if (capture) {
+        trace.input = panel.preedit().toString();
+        std::vector<size_t> offsets;
+        for (size_t i = 0; i < suzuContext_.size();) {
+            offsets.push_back(i);
+            auto c = static_cast<unsigned char>(suzuContext_[i]);
+            size_t width = c < 0x80 ? 1 : c < 0xe0 ? 2 : c < 0xf0 ? 3 : 4;
+            // JNI modified UTF-8 encodes supplementary characters as two
+            // three-byte surrogates. Keep the pair together when trimming.
+            if (i + 5 < suzuContext_.size() && c == 0xed &&
+                (static_cast<unsigned char>(suzuContext_[i + 1]) & 0xf0) == 0xa0 &&
+                static_cast<unsigned char>(suzuContext_[i + 3]) == 0xed &&
+                (static_cast<unsigned char>(suzuContext_[i + 4]) & 0xf0) == 0xb0) width = 6;
+            i += std::min(width, suzuContext_.size() - i);
+        }
+        trace.context = offsets.size() > 30 ? suzuContext_.substr(offsets[offsets.size() - 30]) : suzuContext_;
+        const auto *bulk = list->toBulk();
+        int total = bulk ? bulk->totalSize() : list->size();
+        int limit = total < 0 ? 10 : std::min(10, total);
+        for (int i = 0; i < limit; ++i) {
+            try {
+                const auto &candidate = bulk ? bulk->candidateFromAll(i) : list->candidate(i);
+                RankingCandidateTrace item;
+                item.text = candidate.text().toStringForCommit();
+                item.originalRank = item.finalRank = i + 1;
+                trace.candidates.push_back(std::move(item));
+            } catch (const std::invalid_argument &) { break; }
+        }
+    }
+    auto *entry = instance_->inputMethodEntry(activeIC_);
+    if (!entry || entry->uniqueName() != "pinyin") { finish("not_pinyin"); return; }
+    if (!suzuEnabled_) { finish("disabled"); return; }
+    if (suzuContext_.empty()) { finish("no_context"); return; }
+    // Only composing candidates. Leave prediction, punctuation and special modes alone.
+    if (panel.preedit().empty()) { finish("prediction"); return; }
+    if (!panel.auxUp().empty() || !panel.auxDown().empty()) { finish("special_mode"); return; }
     auto *common = dynamic_cast<CommonCandidateList *>(list.get());
     if (!common || common->currentPage() != 0 || common->totalSize() < 2 ||
-        common->originSize() != static_cast<size_t>(common->totalSize())) return;
+        common->originSize() != static_cast<size_t>(common->totalSize())) { finish("unsupported_list"); return; }
     rankedList_ = list;
     const int count = std::min(10, common->totalSize());
     auto word = [&](int i) { return common->candidateFromAll(i).text().toStringForCommit(); };
     const auto leader = word(0);
     const auto length = utf8::lengthValidated(leader);
-    if (length < 1 || length > 12) return;
+    if (length < 1 || length > 12) { finish("unsupported_length"); return; }
     std::vector<int> positions;
     std::vector<std::string> words;
     for (int i = 0; i < count; ++i) {
         auto text = word(i);
-        if (utf8::lengthValidated(text) != length) continue;
+        if (utf8::lengthValidated(text) != length) {
+            if (capture) trace.candidates[i].excluded = "different_length";
+            continue;
+        }
         bool chinese = true;
         for (auto cp : utf8::MakeUTF8CharRange(text)) {
             if (cp < 0x3400 || cp > 0x9fff) { chinese = false; break; }
         }
         if (chinese) { positions.push_back(i); words.push_back(std::move(text)); }
+        else if (capture) trace.candidates[i].excluded = "not_chinese";
     }
-    if (positions.size() < 2 || positions.front() != 0) return;
+    if (positions.size() < 2 || positions.front() != 0) { finish("few_comparable_candidates"); return; }
     std::vector<double> scores;
-    if (!suzu_.score(suzuContext_, words, scores)) return;
+    SuzuScoreInfo info;
+    const bool scored = suzu_.score(suzuContext_, words, scores, &info);
+    trace.elapsedMs = info.elapsedMs;
+    if (info.modelMs >= 0) trace.modelMs = info.modelMs;
+    if (!scored) {
+        if (capture) for (int index : info.unknownCandidates) {
+            if (index >= 0 && index < static_cast<int>(positions.size())) trace.candidates[positions[index]].excluded = "out_of_vocab";
+        }
+        finish(info.reason); return;
+    }
     // A small engine-rank prior plus a conservative 2.5-log-probability gate.
     std::vector<int> order(words.size());
     std::iota(order.begin(), order.end(), 0);
+    for (double score : scores) if (!std::isfinite(score)) { finish("nonfinite_score"); return; }
     for (size_t i = 0; i < scores.size(); ++i) {
-        if (!std::isfinite(scores[i])) return;
+        if (capture) {
+            auto &candidate = trace.candidates[positions[i]];
+            candidate.rawScore = scores[i];
+            candidate.rankPenalty = 0.3 * positions[i];
+            candidate.finalScore = scores[i] - 0.3 * positions[i];
+        }
         scores[i] -= 0.3 * positions[i];
     }
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return scores[a] > scores[b]; });
     if (scores[order.front()] < scores[0] + 2.5) {
+        trace.topProtected = order.front() != 0;
         order.erase(std::find(order.begin(), order.end(), 0));
         order.insert(order.begin(), 0);
     }
@@ -436,6 +503,9 @@ void AndroidFrontend::rerankCandidates() {
     for (int i = 0; i < count; ++i) current.push_back(&common->candidateFromAll(i));
     desired = current;
     for (size_t i = 0; i < positions.size(); ++i) desired[positions[i]] = current[positions[order[i]]];
+    if (capture) for (size_t i = 0; i < trace.candidates.size(); ++i) {
+        trace.candidates[i].finalRank = static_cast<int>(std::find(desired.begin(), desired.end(), current[i]) - desired.begin()) + 1;
+    }
     bool changed = false;
     for (int i = 0; i < count; ++i) {
         auto found = std::find(current.begin() + i, current.end(), desired[i]);
@@ -446,6 +516,8 @@ void AndroidFrontend::rerankCandidates() {
         changed = true;
     }
     if (changed) ++suzuReorders_;
+    trace.changed = changed;
+    finish(changed ? "reordered" : "unchanged");
 }
 
 void AndroidFrontend::keyEvent(const Key &key, bool isRelease, const int timestamp) {
@@ -528,7 +600,7 @@ void AndroidFrontend::focusInputContext(bool focus) {
     if (focus) {
         activeIC_->focusIn();
     } else {
-        setSuzuContext("", false);
+        setSuzuContext("", false, false);
         activeIC_->focusOut();
     }
 }
@@ -550,7 +622,7 @@ InputContext *AndroidFrontend::activeInputContext() const {
 }
 
 void AndroidFrontend::deactivateInputContext(const int uid) {
-    setSuzuContext("", false);
+    setSuzuContext("", false, false);
     auto *ptr = icCache_.find(uid);
     if (!ptr) return;
     focusGroup_.setFocusedInputContext(nullptr);

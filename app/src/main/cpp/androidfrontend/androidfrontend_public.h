@@ -57,9 +57,13 @@ FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setCapabilityFlags,
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, configureSuzu,
                              void(const std::string &, const std::string &))
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setSuzuContext,
-                             void(const std::string &, bool))
+                             void(const std::string &, bool, bool))
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, suzuStatus,
                              std::string())
+
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setSuzuDiagnostics, void(bool))
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, suzuDiagnostics, std::string())
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, clearSuzuDiagnostics, void())
 
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, getCandidates,
                              std::vector<CandidateEntity>(const int, const int))

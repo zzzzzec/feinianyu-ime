@@ -122,9 +122,12 @@ public:
     void configureSuzu(const std::string &model, const std::string &vocab) {
         p_frontend->call<fcitx::IAndroidFrontend::configureSuzu>(model, vocab);
     }
-    void setSuzuContext(const std::string &context, bool enabled) {
-        p_frontend->call<fcitx::IAndroidFrontend::setSuzuContext>(context, enabled);
+    void setSuzuContext(const std::string &context, bool enabled, bool allowText) {
+        p_frontend->call<fcitx::IAndroidFrontend::setSuzuContext>(context, enabled, allowText);
     }
+    void setSuzuDiagnostics(bool enabled) { p_frontend->call<fcitx::IAndroidFrontend::setSuzuDiagnostics>(enabled); }
+    void clearSuzuDiagnostics() { p_frontend->call<fcitx::IAndroidFrontend::clearSuzuDiagnostics>(); }
+    std::string suzuDiagnostics() { return p_frontend->call<fcitx::IAndroidFrontend::suzuDiagnostics>(); }
     std::string suzuStatus() {
         return p_frontend->call<fcitx::IAndroidFrontend::suzuStatus>();
     }
@@ -1052,9 +1055,24 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_configureSuzuNative(JNIEnv *env, jclass
     Fcitx::Instance().configureSuzu(CString(env, model), CString(env, vocab));
 }
 extern "C" JNIEXPORT void JNICALL
-Java_org_fcitx_fcitx5_android_core_Fcitx_setSuzuContextNative(JNIEnv *env, jclass, jstring context, jboolean enabled) {
+Java_org_fcitx_fcitx5_android_core_Fcitx_setSuzuContextNative(JNIEnv *env, jclass, jstring context, jboolean enabled, jboolean allowText) {
     RETURN_IF_NOT_RUNNING
-    Fcitx::Instance().setSuzuContext(CString(env, context), enabled);
+    Fcitx::Instance().setSuzuContext(CString(env, context), enabled, allowText);
+}
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_setSuzuDiagnosticsNative(JNIEnv *, jclass, jboolean enabled) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().setSuzuDiagnostics(enabled);
+}
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_clearSuzuDiagnosticsNative(JNIEnv *, jclass) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().clearSuzuDiagnostics();
+}
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_suzuDiagnosticsNative(JNIEnv *env, jclass) {
+    RETURN_VALUE_IF_NOT_RUNNING(nullptr)
+    return env->NewStringUTF(Fcitx::Instance().suzuDiagnostics().c_str());
 }
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_fcitx_fcitx5_android_core_Fcitx_suzuStatusNative(JNIEnv *env, jclass) {

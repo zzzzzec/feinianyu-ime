@@ -201,18 +201,23 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      */
     fun postFcitxJob(block: suspend FcitxAPI.() -> Unit): Job {
         val job = fcitx.lifecycleScope.launch(start = CoroutineStart.LAZY) {
-            val (enabled, context) = withContext(Dispatchers.Main.immediate) {
-                val enabled = prefs.keyboard.suzuEnabled.getValue() && SuzuContextPolicy.allows(currentInputEditorInfo)
-                enabled to if (enabled) readSuzuContext() else ""
+            val snapshot = withContext(Dispatchers.Main.immediate) {
+                val allowed = SuzuContextPolicy.allows(currentInputEditorInfo)
+                val enabled = prefs.keyboard.suzuEnabled.getValue() && allowed
+                val recording = org.fcitx.fcitx5.android.diagnostics.RankingDiagnosticsSettings.enabled(this@FcitxInputMethodService)
+                SuzuSnapshot(enabled, allowed, recording, if (allowed && (enabled || recording)) readSuzuContext() else "")
             }
             fcitx.runOnReady {
-                setSuzuContext(context, enabled)
+                setSuzuDiagnostics(snapshot.recording)
+                setSuzuContext(snapshot.context, snapshot.enabled, snapshot.allowed)
                 block()
             }
         }
         jobs.trySend(job)
         return job
     }
+
+    private data class SuzuSnapshot(val enabled: Boolean, val allowed: Boolean, val recording: Boolean, val context: String)
 
     private fun readSuzuContext(): String {
         if (selection.latest.isNotEmpty()) return ""
@@ -776,7 +781,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             // EditorInfo can be different in onStartInput and onStartInputView,
             // especially in browsers
             setCapFlags(flags)
-            setSuzuContext("", false)
+            setSuzuContext("", false, false)
             // for hardware keyboard, focus to allow switching input methods before onStartInputView
             if (!isNullType) {
                 focus(true)
@@ -1095,7 +1100,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     override fun onFinishInput() {
         Timber.d("onFinishInput")
         postFcitxJob {
-            setSuzuContext("", false)
+            setSuzuContext("", false, false)
             focus(false)
         }
         capabilityFlags = CapabilityFlags.DefaultFlags

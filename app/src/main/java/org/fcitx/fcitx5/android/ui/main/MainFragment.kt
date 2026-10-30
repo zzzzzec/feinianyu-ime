@@ -85,6 +85,9 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
             }
             addCategory("Android") {
+                addPreference(R.string.ranking_diagnostics) {
+                    startActivity(Intent(requireContext(), org.fcitx.fcitx5.android.diagnostics.RankingDiagnosticsActivity::class.java))
+                }
                 addPreference(R.string.app_updates) {
                     startActivity(Intent(requireContext(), UpdateActivity::class.java))
                 }

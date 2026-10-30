@@ -52,6 +52,7 @@
         android:theme="@style/Theme.FcitxAppTheme"
         tools:targetApi="33">
         <activity android:name=".update.UpdateActivity" android:exported="false" />
+        <activity android:name=".diagnostics.RankingDiagnosticsActivity" android:exported="false" />
         <service android:name=".update.UpdateJobService" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.updates" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />

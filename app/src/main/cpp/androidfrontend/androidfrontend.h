@@ -13,6 +13,7 @@
 #include "androidfrontend_public.h"
 #include "inputcontextcache.h"
 #include "../suzu/suzu-reranker.h"
+#include "ranking-diagnostics.h"
 
 namespace fcitx {
 
@@ -44,8 +45,11 @@ public:
     [[nodiscard]] InputContext *activeInputContext() const;
     void setCapabilityFlags(uint64_t flag);
     void configureSuzu(const std::string &model, const std::string &vocab);
-    void setSuzuContext(const std::string &context, bool enabled);
+    void setSuzuContext(const std::string &context, bool enabled, bool allowDiagnosticText = true);
     std::string suzuStatus();
+    void setSuzuDiagnostics(bool enabled);
+    std::string suzuDiagnostics();
+    void clearSuzuDiagnostics();
     void rerankCandidates();
     std::vector<CandidateEntity> getCandidates(int offset, int limit);
     std::vector<CandidateActionEntity> getCandidateActions(int idx);
@@ -82,6 +86,9 @@ private:
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, configureSuzu);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setSuzuContext);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, suzuStatus);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setSuzuDiagnostics);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, suzuDiagnostics);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, clearSuzuDiagnostics);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, getCandidates);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, getCandidateActions);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, triggerCandidateAction);
@@ -111,6 +118,9 @@ private:
     SuzuReranker suzu_;
     std::string suzuContext_;
     bool suzuEnabled_ = false;
+    bool allowDiagnosticText_ = false;
+    RankingDiagnostics diagnostics_;
+    std::weak_ptr<CandidateList> diagnosedList_;
     std::weak_ptr<CandidateList> rankedList_;
     unsigned suzuReorders_ = 0;
 

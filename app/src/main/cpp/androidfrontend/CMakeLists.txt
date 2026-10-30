@@ -1,6 +1,6 @@
 add_definitions(-DFCITX_GETTEXT_DOMAIN=\"fcitx5-android\")
 
-add_library(androidfrontend MODULE androidfrontend.cpp)
+add_library(androidfrontend MODULE androidfrontend.cpp ranking-diagnostics.cpp)
 target_link_libraries(androidfrontend Fcitx5::Core suzu)
 
 configure_file(androidfrontend.conf.in.in androidfrontend.conf.in @ONLY)

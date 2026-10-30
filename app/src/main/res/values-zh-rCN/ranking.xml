@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ranking_diagnostics">排序诊断</string>
+    <string name="ranking_record">记录排序结果</string>
+    <string name="ranking_retention">临时保留最近 50 次记录，含上文和候选词；重启输入引擎后清空。密码等敏感输入不记录文本。</string>
+    <string name="ranking_refresh">刷新</string>
+    <string name="ranking_export">导出 JSON</string>
+    <string name="ranking_exported">日志已导出</string>
+    <string name="ranking_error">出错：%1$s</string>
+    <string name="ranking_try_input">在这里输入，或到其他应用输入后返回</string>
+    <string name="ranking_empty">打开记录开关，再用拼音输入。返回这里选择记录，查看排序结果。</string>
+    <string name="ranking_status">Suzu-2.4：%1$s\n已评分 %2$d 次 · 改序 %3$d 次 · 超时 %4$d 次</string>
+    <string name="ranking_result">结果：%1$s</string>
+    <string name="ranking_input">拼音：%1$s</string>
+    <string name="ranking_context">上文：%1$s</string>
+    <string name="ranking_timing">等待：%1$s ms · 模型计算：%2$s ms</string>
+    <string name="ranking_top_protected">首选保护生效：分数提升不足 2.5，保留原首选。</string>
+    <string name="ranking_order">原顺序：%1$s\n最终顺序：%2$s</string>
+    <string name="ranking_scores">模型 %1$s − 原序惩罚 %2$s = 最终分 %3$s</string>
+    <string name="ranking_reason_ready">已就绪</string>
+    <string name="ranking_reason_loading">模型加载中</string>
+    <string name="ranking_reason_unconfigured">模型尚未配置</string>
+    <string name="ranking_reason_error">模型加载失败</string>
+    <string name="ranking_reason_reordered">已评分并改序</string>
+    <string name="ranking_reason_unchanged">已评分，保留原序</string>
+    <string name="ranking_reason_no_context">没有上文</string>
+    <string name="ranking_reason_short_context">上文没有可用词元</string>
+    <string name="ranking_reason_disabled">排序开关已关闭</string>
+    <string name="ranking_reason_not_pinyin">当前不是拼音</string>
+    <string name="ranking_reason_prediction">联想候选</string>
+    <string name="ranking_reason_special_mode">特殊输入模式</string>
+    <string name="ranking_reason_unsupported_list">当前候选列表或分页不支持</string>
+    <string name="ranking_reason_unsupported_length">候选长度不支持</string>
+    <string name="ranking_reason_few_comparable_candidates">可比较候选不足两个</string>
+    <string name="ranking_reason_different_length">与原首选长度不同</string>
+    <string name="ranking_reason_not_chinese">非中文候选</string>
+    <string name="ranking_reason_out_of_vocab">候选含词表外字符</string>
+    <string name="ranking_reason_timeout">超过 40 ms 等待时间，保留原序</string>
+    <string name="ranking_reason_busy">模型忙，保留原序</string>
+    <string name="ranking_reason_context_cleared">上文已清空</string>
+    <string name="ranking_reason_inference_error">模型计算失败</string>
+    <string name="ranking_reason_nonfinite_score">模型分数无效</string>
+    <string name="ranking_reason_private_input">敏感输入，已省略文本</string>
+    <string name="ranking_reason_not_scored">未评分</string>
+</resources>
