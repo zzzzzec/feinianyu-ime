@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="suzu_enabled">Suzu candidate ranking</string>
+    <string name="suzu_enabled_summary">Suzu-2.4 · offline · preceding text</string>
+    <string name="keyboard_font_size">Keyboard font size</string>
+    <string name="keyboard_candidate_font_size">Keyboard candidate font size</string>
+</resources>

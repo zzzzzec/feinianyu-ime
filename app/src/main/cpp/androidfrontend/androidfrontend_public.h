@@ -54,6 +54,13 @@ FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, deactivateInputContext,
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setCapabilityFlags,
                              void(uint64_t))
 
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, configureSuzu,
+                             void(const std::string &, const std::string &))
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setSuzuContext,
+                             void(const std::string &, bool))
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, suzuStatus,
+                             std::string())
+
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, getCandidates,
                              std::vector<CandidateEntity>(const int, const int))
 

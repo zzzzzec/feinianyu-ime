@@ -102,3 +102,13 @@ lint/tmp/
 
 ### Kotlin ###
 .kotlin/
+
+# Downloaded, checksum-pinned model; run scripts/fetch-suzu.ps1 before building.
+/app/src/main/assets/suzu/*.gguf
+/app/src/main/assets/suzu/*.vocab.txt
+/app/src/main/assets/suzu/*.download
+/.private/
+*.p12
+*.jks
+*.keystore
+/dist/

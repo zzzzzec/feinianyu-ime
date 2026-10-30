@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="suzu_enabled">Suzu 候選排序</string>
+    <string name="suzu_enabled_summary">Suzu-2.4 · 離線 · 結合輸入上文</string>
+    <string name="keyboard_font_size">鍵盤字型大小</string>
+    <string name="keyboard_candidate_font_size">鍵盤候選字型大小</string>
+</resources>

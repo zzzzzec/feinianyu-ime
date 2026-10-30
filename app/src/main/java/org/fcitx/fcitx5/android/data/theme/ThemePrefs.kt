@@ -34,14 +34,14 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         return pref
     }
 
-    val keyBorder = switch(R.string.key_border, "key_border", false)
+    val keyBorder = switch(R.string.key_border, "key_border", true)
 
     val keyBorderStroke = switch(
         R.string.key_border_stroke, "key_border_stroke", false,
         enableUiOn = { keyBorder.getValue() }
     )
 
-    val keyRippleEffect = switch(R.string.key_ripple_effect, "key_ripple_effect", false)
+    val keyRippleEffect = switch(R.string.key_ripple_effect, "key_ripple_effect", true)
 
     val keyHorizontalMargin: ManagedPreference.PInt
     val keyHorizontalMarginLandscape: ManagedPreference.PInt
@@ -71,7 +71,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
             R.string.key_vertical_margin,
             R.string.portrait,
             "key_vertical_margin",
-            7,
+            6,
             R.string.landscape,
             "key_vertical_margin_landscape",
             4,
@@ -83,7 +83,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         keyVerticalMarginLandscape = secondary
     }
 
-    val keyRadius = int(R.string.key_radius, "key_radius", 4, 0, 48, "dp")
+    val keyRadius = int(R.string.key_radius, "key_radius", 8, 0, 48, "dp")
 
     val textEditingButtonRadius =
         int(R.string.text_editing_button_radius, "text_editing_button_radius", 8, 0, 48, "dp")
@@ -100,7 +100,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
     val punctuationPosition = enumList(
         R.string.punctuation_position,
         "punctuation_position",
-        PunctuationPosition.Bottom
+        PunctuationPosition.TopRight
     )
 
     enum class NavbarBackground(override val stringRes: Int) : ManagedPreferenceEnum {
@@ -143,7 +143,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
     val lightModeTheme = themePreference(
         R.string.light_mode_theme,
         "light_mode_theme",
-        if (BuildConfig.DEBUG) ThemePreset.MaterialLight else ThemePreset.PixelLight,
+        ThemePreset.GboardStage1Light,
         enableUiOn = {
             followSystemDayNightTheme.getValue()
         })

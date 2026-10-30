@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="personal_app_name">飞念语输入法</string>
+    <string name="app_updates">应用更新</string>
+    <string name="update_automatic">通过 Wi-Fi 自动下载更新</string>
+    <string name="update_check">检查更新</string>
+    <string name="update_checking">正在检查更新…</string>
+    <string name="update_current">当前已是最新版本</string>
+    <string name="update_current_version">当前版本：%1$s</string>
+    <string name="update_downloading">正在下载更新：%1$d%%</string>
+    <string name="update_ready">%1$s 已下载，等待安装</string>
+    <string name="update_install">安装更新</string>
+    <string name="update_changelog">更新内容</string>
+    <string name="update_failed">更新失败：%1$s</string>
+</resources>

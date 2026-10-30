@@ -27,6 +27,7 @@ find_package(fcitx5-chinese-addons REQUIRED CONFIG)
 include("${FCITX_INSTALL_CMAKECONFIG_DIR}/Fcitx5Utils/Fcitx5CompilerSettings.cmake")
 
 add_subdirectory(po)
+add_subdirectory(suzu)
 add_subdirectory(androidfrontend)
 add_subdirectory(androidkeyboard)
 add_subdirectory(androidnotification)

@@ -12,6 +12,9 @@
 #include <fcitx/inputpanel.h>
 #include <fcitx/statusarea.h>
 #include <fcitx-utils/event.h>
+#include <fcitx-utils/utf8.h>
+#include <cmath>
+#include <numeric>
 
 #include "androidfrontend.h"
 
@@ -347,6 +350,7 @@ AndroidFrontend::AndroidFrontend(Instance *instance)
                 if (e.inputContext() != activeIC_) return;
                 switch (e.component()) {
                     case UserInterfaceComponent::InputPanel: {
+                        rerankCandidates();
                         activeIC_->updateInputPanel();
                         if (pagingMode_ == 0) {
                             activeIC_->updateCandidatesBulk();
@@ -362,6 +366,86 @@ AndroidFrontend::AndroidFrontend(Instance *instance)
                 }
             }
     ));
+}
+
+void AndroidFrontend::configureSuzu(const std::string &model, const std::string &vocab) {
+    suzu_.configure(model, vocab);
+}
+
+void AndroidFrontend::setSuzuContext(const std::string &context, bool enabled) {
+    if ((!enabled && suzuEnabled_) || (context.empty() && !suzuContext_.empty())) suzu_.clearContext();
+    suzuContext_ = enabled ? context : "";
+    suzuEnabled_ = enabled;
+}
+
+std::string AndroidFrontend::suzuStatus() {
+    auto status = suzu_.status();
+    status.pop_back();
+    return status + ",\"reorders\":" + std::to_string(suzuReorders_) + "}";
+}
+
+void AndroidFrontend::rerankCandidates() {
+    if (!activeIC_ || !suzuEnabled_ || suzuContext_.empty()) return;
+    auto *entry = instance_->inputMethodEntry(activeIC_);
+    if (!entry || entry->uniqueName() != "pinyin") return;
+    const auto flags = activeIC_->capabilityFlags();
+    if (flags.test(CapabilityFlag::Password) || flags.test(CapabilityFlag::Sensitive)) return;
+    auto &panel = activeIC_->inputPanel();
+    // Only composing candidates. Leave prediction, punctuation and special modes alone.
+    if (panel.preedit().empty() || !panel.auxUp().empty() || !panel.auxDown().empty()) return;
+    auto list = panel.candidateList();
+    if (!list || rankedList_.lock() == list) return;
+    auto *common = dynamic_cast<CommonCandidateList *>(list.get());
+    if (!common || common->currentPage() != 0 || common->totalSize() < 2 ||
+        common->originSize() != static_cast<size_t>(common->totalSize())) return;
+    rankedList_ = list;
+    const int count = std::min(10, common->totalSize());
+    auto word = [&](int i) { return common->candidateFromAll(i).text().toStringForCommit(); };
+    const auto leader = word(0);
+    const auto length = utf8::lengthValidated(leader);
+    if (length < 1 || length > 12) return;
+    std::vector<int> positions;
+    std::vector<std::string> words;
+    for (int i = 0; i < count; ++i) {
+        auto text = word(i);
+        if (utf8::lengthValidated(text) != length) continue;
+        bool chinese = true;
+        for (auto cp : utf8::MakeUTF8CharRange(text)) {
+            if (cp < 0x3400 || cp > 0x9fff) { chinese = false; break; }
+        }
+        if (chinese) { positions.push_back(i); words.push_back(std::move(text)); }
+    }
+    if (positions.size() < 2 || positions.front() != 0) return;
+    std::vector<double> scores;
+    if (!suzu_.score(suzuContext_, words, scores)) return;
+    // A small engine-rank prior plus a conservative 2.5-log-probability gate.
+    std::vector<int> order(words.size());
+    std::iota(order.begin(), order.end(), 0);
+    for (size_t i = 0; i < scores.size(); ++i) {
+        if (!std::isfinite(scores[i])) return;
+        scores[i] -= 0.3 * positions[i];
+    }
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return scores[a] > scores[b]; });
+    if (scores[order.front()] < scores[0] + 2.5) {
+        order.erase(std::find(order.begin(), order.end(), 0));
+        order.insert(order.begin(), 0);
+    }
+    // Reorder the engine's actual CandidateWord objects. Their select callbacks,
+    // learning and actions remain intact, and all UI/keyboard paths agree.
+    std::vector<const CandidateWord *> desired, current;
+    for (int i = 0; i < count; ++i) current.push_back(&common->candidateFromAll(i));
+    desired = current;
+    for (size_t i = 0; i < positions.size(); ++i) desired[positions[i]] = current[positions[order[i]]];
+    bool changed = false;
+    for (int i = 0; i < count; ++i) {
+        auto found = std::find(current.begin() + i, current.end(), desired[i]);
+        int from = static_cast<int>(found - current.begin());
+        if (from == i) continue;
+        common->move(from, i);
+        std::rotate(current.begin() + i, current.begin() + from, current.begin() + from + 1);
+        changed = true;
+    }
+    if (changed) ++suzuReorders_;
 }
 
 void AndroidFrontend::keyEvent(const Key &key, bool isRelease, const int timestamp) {
@@ -444,6 +528,7 @@ void AndroidFrontend::focusInputContext(bool focus) {
     if (focus) {
         activeIC_->focusIn();
     } else {
+        setSuzuContext("", false);
         activeIC_->focusOut();
     }
 }
@@ -465,6 +550,7 @@ InputContext *AndroidFrontend::activeInputContext() const {
 }
 
 void AndroidFrontend::deactivateInputContext(const int uid) {
+    setSuzuContext("", false);
     auto *ptr = icCache_.find(uid);
     if (!ptr) return;
     focusGroup_.setFocusedInputContext(nullptr);

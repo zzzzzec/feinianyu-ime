@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.ViewOutlineProvider
 import android.widget.TextView
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.input.AutoScaleTextView
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.centerHorizontally
@@ -26,7 +27,7 @@ class PopupEntryUi(override val ctx: Context, theme: Theme, keyHeight: Int, radi
     var lastShowTime = -1L
 
     val textView = view(::AutoScaleTextView) {
-        textSize = 23f
+        textSize = AppPrefs.getInstance().keyboard.keyFontSize.getValue().coerceIn(12, 32).toFloat()
         gravity = gravityCenter
         setTextColor(theme.popupTextColor)
     }

@@ -12,10 +12,12 @@
 
 #include "androidfrontend_public.h"
 #include "inputcontextcache.h"
+#include "../suzu/suzu-reranker.h"
 
 namespace fcitx {
 
 class AndroidInputContext;
+class CandidateList;
 
 class AndroidFrontend : public AddonInstance {
 public:
@@ -41,6 +43,10 @@ public:
     void deactivateInputContext(int uid);
     [[nodiscard]] InputContext *activeInputContext() const;
     void setCapabilityFlags(uint64_t flag);
+    void configureSuzu(const std::string &model, const std::string &vocab);
+    void setSuzuContext(const std::string &context, bool enabled);
+    std::string suzuStatus();
+    void rerankCandidates();
     std::vector<CandidateEntity> getCandidates(int offset, int limit);
     std::vector<CandidateActionEntity> getCandidateActions(int idx);
     void triggerCandidateAction(int idx, int actionIdx);
@@ -73,6 +79,9 @@ private:
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, activeInputContext);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, deactivateInputContext);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setCapabilityFlags);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, configureSuzu);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setSuzuContext);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, suzuStatus);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, getCandidates);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, getCandidateActions);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, triggerCandidateAction);
@@ -99,6 +108,11 @@ private:
     InputContextCache icCache_;
     std::vector<std::unique_ptr<HandlerTableEntry<EventHandler>>> eventHandlers_;
     int pagingMode_;
+    SuzuReranker suzu_;
+    std::string suzuContext_;
+    bool suzuEnabled_ = false;
+    std::weak_ptr<CandidateList> rankedList_;
+    unsigned suzuReorders_ = 0;
 
     CandidateListCallback candidateListCallback = [](const std::vector<CandidateEntity> &, const int) {};
     CommitStringCallback commitStringCallback = [](const std::string &, const int) {};

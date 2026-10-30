@@ -78,6 +78,14 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     override suspend fun save() = withFcitxContext { saveFcitxState() }
     override suspend fun reloadConfig() = withFcitxContext { reloadFcitxConfig() }
 
+    override suspend fun configureSuzu(modelPath: String, vocabPath: String) =
+        withFcitxContext { configureSuzuNative(modelPath, vocabPath) }
+
+    override suspend fun setSuzuContext(context: String, enabled: Boolean) =
+        withFcitxContext { setSuzuContextNative(context, enabled) }
+
+    override suspend fun suzuStatus() = withFcitxContext { suzuStatusNative() }
+
     override suspend fun sendKey(
         key: String,
         states: UInt,
@@ -206,6 +214,12 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         get() = lifecycleRegistry
 
     private companion object JNI {
+        @JvmStatic
+        private external fun configureSuzuNative(modelPath: String, vocabPath: String)
+        @JvmStatic
+        private external fun setSuzuContextNative(context: String, enabled: Boolean)
+        @JvmStatic
+        private external fun suzuStatusNative(): String
 
         /**
          * called from native-lib

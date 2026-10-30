@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AGP also emits the debug resValues into the instrumentation APK. -->
+<resources>
+    <string name="personal_app_name">Feinianyu IME tests</string>
+    <string name="app_name_debug">Fcitx integration tests</string>
+    <item name="ic_launcher_debug" type="mipmap">@android:drawable/sym_def_app_icon</item>
+    <item name="ic_launcher_round_debug" type="mipmap">@android:drawable/sym_def_app_icon</item>
+</resources>

@@ -1,0 +1,17 @@
+Suzu-2.4 candidate ranking model
+Author: IzumiThe3rd
+Source: https://huggingface.co/IzumiThe3rd/Suzu-2.4
+Revision: b166ed00f744a3a8f68f7b1b8980a76c80ac9f25
+Weights: CC BY-SA 4.0. Unmodified Q8_0 weights.
+See NOTICE.md and CC-BY-SA-4.0.txt for attribution and terms.
+
+Inference layer: https://github.com/1zumiii/suzu-ime
+Commit: a25db7850ed177bf05f5f79eee9a206e5586b955 (core/model only)
+Licence: GPL-3.0; see Suzu-core-GPL3.txt.
+llama.cpp: https://github.com/ggml-org/llama.cpp (b11632), MIT; see llama-MIT.txt.
+
+Fcitx Android integration and corresponding source:
+https://github.com/zzzzzec/feinianyu-ime
+Integration files are GPL-3.0-or-later. Original components retain their
+own licence notices; the combined app is distributed under GPL-3.0.
+The source includes checksum-pinned model retrieval and build instructions.

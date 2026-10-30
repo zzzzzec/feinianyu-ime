@@ -1,0 +1,25 @@
+# 声明与致谢
+
+## 训练数据
+
+Suzu 的训练和评测题均来自维基百科中文（Hugging Face 数据集 `wikimedia/wikipedia`，快照 20231101，第 1 分片），文本由维基百科的贡献者撰写，按 CC BY-SA 3.0 与 GFDL 许可发布。仓库不包含语料原文，只包含由语料派生的统计结果和模型。使用本模型时，请保留对维基百科及其贡献者的署名。用该语料训练得到的模型权重是否适用“相同方式共享”条款，目前没有定论；模型权重按 CC BY-SA 4.0 发布（与上述语料的 SA 条款相容），并在模型卡中重复本声明。
+
+## 教师与对照模型
+
+教师打分和对照评测使用 Qwen3.5-0.8B、Qwen3.5-4B、Qwen3.5-4B-Base、Qwen3.5-9B（Qwen 团队，Apache-2.0）。仓库不包含这些模型的权重；训练标签由它们对候选打分得到，学生模型的权重独立训练。
+
+## 合成领域语料
+
+Suzu-2.1 的续训加入了由 Qwen3.5-9B 生成的日常口语、技术、二次元短句，并用 Qwen3.5-4B-Base 做困惑度过滤和标注。这些文本按教师模型（Qwen 团队，Apache-2.0）的输出处理，不含真实个人数据，不复述有版权的作品原文。生成参数和提示词见 `DATA.md`。
+
+## 词库
+
+Suzu-2.4 的简拼训练题，其候选词取自雾凇拼音（[rime-ice](https://github.com/iDvel/rime-ice)，GPL-3.0）的词库：每道题的候选为答案加词库中同缩写的若干词。词库只提供词条和权重，作为训练时的候选，仓库与模型权重都不含词库原文。用词库派生的候选训练得到的权重是否适用词库的许可条款，目前没有定论，与上文维基百科语料的情形相同；使用时请保留对雾凇拼音及其贡献者的署名。
+
+## 依赖
+
+jieba、pypinyin、opencc-python-reimplemented、transformers、bitsandbytes、flash-linear-attention、triton-windows 等，各自遵循其许可证，版本见 `requirements.txt` 与 `setup.ps1`。
+
+## 模型权重的署名
+
+权重按 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/legalcode.zh-hans) 许可。署名示例：Suzu 输入法候选排序模型，作者 IzumiThe3rd，来源 Hugging Face 的 IzumiThe3rd/Suzu-2.4（或 IzumiThe3rd/Suzu-2.1、IzumiThe3rd/Suzu-2），按 CC BY-SA 4.0 许可。

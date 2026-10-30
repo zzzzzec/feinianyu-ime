@@ -119,6 +119,16 @@ public:
         return p_frontend->call<fcitx::IAndroidFrontend::selectCandidate>(idx);
     }
 
+    void configureSuzu(const std::string &model, const std::string &vocab) {
+        p_frontend->call<fcitx::IAndroidFrontend::configureSuzu>(model, vocab);
+    }
+    void setSuzuContext(const std::string &context, bool enabled) {
+        p_frontend->call<fcitx::IAndroidFrontend::setSuzuContext>(context, enabled);
+    }
+    std::string suzuStatus() {
+        return p_frontend->call<fcitx::IAndroidFrontend::suzuStatus>();
+    }
+
     bool isInputPanelEmpty() {
         return p_frontend->call<fcitx::IAndroidFrontend::isInputPanelEmpty>();
     }
@@ -1034,6 +1044,22 @@ JNIEXPORT void JNICALL
 Java_org_fcitx_fcitx5_android_core_Fcitx_setCapabilityFlags(JNIEnv *env, jclass clazz, jlong flags) {
     RETURN_IF_NOT_RUNNING
     Fcitx::Instance().setCapabilityFlags(static_cast<uint64_t>(flags));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_configureSuzuNative(JNIEnv *env, jclass, jstring model, jstring vocab) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().configureSuzu(CString(env, model), CString(env, vocab));
+}
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_setSuzuContextNative(JNIEnv *env, jclass, jstring context, jboolean enabled) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().setSuzuContext(CString(env, context), enabled);
+}
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_suzuStatusNative(JNIEnv *env, jclass) {
+    RETURN_VALUE_IF_NOT_RUNNING(nullptr)
+    return env->NewStringUTF(Fcitx::Instance().suzuStatus().c_str());
 }
 
 extern "C"

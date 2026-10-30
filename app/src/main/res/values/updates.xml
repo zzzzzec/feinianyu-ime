@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="personal_app_name">Feinianyu IME</string>
+    <string name="app_updates">App updates</string>
+    <string name="update_automatic">Download updates automatically over Wi-Fi</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_current">You have the latest version</string>
+    <string name="update_current_version">Installed version: %1$s</string>
+    <string name="update_downloading">Downloading update: %1$d%%</string>
+    <string name="update_ready">%1$s is ready to install</string>
+    <string name="update_install">Install update</string>
+    <string name="update_changelog">Changelog</string>
+    <string name="update_failed">Update failed: %1$s</string>
+</resources>

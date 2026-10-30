@@ -1,0 +1,13 @@
+{
+  "light_mode_theme": "GboardStage1Light",
+  "key_border": true,
+  "key_border_stroke": false,
+  "key_radius": 8,
+  "key_horizontal_margin": 3,
+  "key_vertical_margin": 6,
+  "punctuation_position": "TopRight",
+  "keyboard_height_percent": 26,
+  "keyboard_side_padding": 2,
+  "expand_toolbar_by_default": true,
+  "key_ripple_effect": true
+}

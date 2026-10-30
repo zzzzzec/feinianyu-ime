@@ -33,7 +33,8 @@ class NativeAppConventionPlugin : NativeBaseConventionPlugin() {
                 variant.outputs.forEach { output ->
                     val abi = output.filters.find { it.filterType == FilterType.ABI }
                     if (abi != null) {
-                        output.versionCode.set(Versions.calculateVersionCode(abi.identifier))
+                        output.versionCode.set(target.providers.gradleProperty("personalVersionCode").orNull?.toInt()
+                            ?: Versions.calculateVersionCode(abi.identifier))
                     }
                 }
             }

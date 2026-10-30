@@ -137,8 +137,13 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val focusChangeResetKeyboard =
             switch(R.string.reset_keyboard_on_focus_change, "reset_keyboard_on_focus_change", true)
         val expandToolbarByDefault =
-            switch(R.string.expand_toolbar_by_default, "expand_toolbar_by_default", false)
+            switch(R.string.expand_toolbar_by_default, "expand_toolbar_by_default", true)
         val inlineSuggestions = switch(R.string.inline_suggestions, "inline_suggestions", true)
+        val suzuEnabled = switch(
+            R.string.suzu_enabled, "suzu_enabled", true, summary = R.string.suzu_enabled_summary
+        )
+        val keyFontSize = int(R.string.keyboard_font_size, "keyboard_font_size", 20, 12, 32, "dp")
+        val candidateFontSize = int(R.string.keyboard_candidate_font_size, "keyboard_candidate_font_size", 18, 12, 32, "sp")
         val toolbarNumRowOnPassword =
             switch(R.string.toolbar_num_row_on_password, "toolbar_num_row_on_password", true)
         val popupOnKeyPress = switch(R.string.popup_on_key_press, "popup_on_key_press", true)
@@ -193,7 +198,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.keyboard_height,
                 R.string.portrait,
                 "keyboard_height_percent",
-                30,
+                26,
                 R.string.landscape,
                 "keyboard_height_percent_landscape",
                 49,
@@ -213,7 +218,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.keyboard_side_padding,
                 R.string.portrait,
                 "keyboard_side_padding",
-                0,
+                2,
                 R.string.landscape,
                 "keyboard_side_padding_landscape",
                 0,

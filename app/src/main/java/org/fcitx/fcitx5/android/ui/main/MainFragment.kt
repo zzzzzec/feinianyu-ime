@@ -17,6 +17,7 @@ import androidx.core.view.MenuProvider
 import androidx.lifecycle.Lifecycle
 import androidx.preference.PreferenceCategory
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.update.UpdateActivity
 import org.fcitx.fcitx5.android.ui.common.PaddingPreferenceFragment
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
 import org.fcitx.fcitx5.android.utils.Const
@@ -84,6 +85,9 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
             }
             addCategory("Android") {
+                addPreference(R.string.app_updates) {
+                    startActivity(Intent(requireContext(), UpdateActivity::class.java))
+                }
                 addDestinationPreference(
                     R.string.theme,
                     R.drawable.ic_baseline_palette_24,

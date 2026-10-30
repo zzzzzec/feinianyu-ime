@@ -25,6 +25,7 @@ import androidx.annotation.FloatRange
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition
@@ -256,7 +257,7 @@ open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text) 
         isFocusable = false
         background = null
         text = def.displayText
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, def.textSize)
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, def.textSize * AppPrefs.getInstance().keyboard.keyFontSize.getValue().coerceIn(12, 32) / 23f)
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         // keep original typeface, apply textStyle only
         setTypeface(typeface, def.textStyle)
@@ -284,8 +285,7 @@ class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText)
     val altText = view(::AutoScaleTextView) {
         isClickable = false
         isFocusable = false
-        // TODO hardcoded alt text size
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.666667f)
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.666667f * AppPrefs.getInstance().keyboard.keyFontSize.getValue().coerceIn(12, 32) / 23f)
         setTypeface(typeface, Typeface.BOLD)
         text = def.altText
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR

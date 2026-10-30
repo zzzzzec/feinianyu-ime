@@ -42,6 +42,8 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
@@ -55,6 +57,7 @@ import org.fcitx.fcitx5.android.core.KeyStates
 import org.fcitx.fcitx5.android.core.KeySym
 import org.fcitx.fcitx5.android.core.ScancodeMapping
 import org.fcitx.fcitx5.android.core.SubtypeManager
+import org.fcitx.fcitx5.android.core.SuzuAssets
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.InputFeedbacks
@@ -143,6 +146,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private val recreateInputViewPrefs: Array<ManagedPreference<*>> = arrayOf(
         prefs.keyboard.expandKeypressArea,
+        prefs.keyboard.keyFontSize,
+        prefs.keyboard.candidateFontSize,
         prefs.advanced.disableAnimation,
         prefs.advanced.ignoreSystemWindowInsets,
     )
@@ -196,10 +201,28 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
      */
     fun postFcitxJob(block: suspend FcitxAPI.() -> Unit): Job {
         val job = fcitx.lifecycleScope.launch(start = CoroutineStart.LAZY) {
-            fcitx.runOnReady(block)
+            val (enabled, context) = withContext(Dispatchers.Main.immediate) {
+                val enabled = prefs.keyboard.suzuEnabled.getValue() && SuzuContextPolicy.allows(currentInputEditorInfo)
+                enabled to if (enabled) readSuzuContext() else ""
+            }
+            fcitx.runOnReady {
+                setSuzuContext(context, enabled)
+                block()
+            }
         }
         jobs.trySend(job)
         return job
+    }
+
+    private fun readSuzuContext(): String {
+        if (selection.latest.isNotEmpty()) return ""
+        val before = runCatching { currentInputConnection?.getTextBeforeCursor(96, 0)?.toString() }
+            .getOrNull() ?: return ""
+        // Exclude composing text: it can contain the engine's provisional first candidate.
+        val composingBeforeCursor = if (composing.isNotEmpty()) {
+            (selection.latest.start - composing.start).coerceIn(0, before.length)
+        } else 0
+        return before.dropLast(composingBeforeCursor)
     }
 
     override fun onCreate() {
@@ -224,6 +247,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
         }
         super.onCreate()
+        lifecycleScope.launch {
+            runCatching { withContext(Dispatchers.IO) { SuzuAssets.prepare(this@FcitxInputMethodService) } }
+                .onSuccess { (model, vocab) -> postFcitxJob { configureSuzu(model, vocab) } }
+                .onFailure { Timber.e(it, "Cannot prepare bundled Suzu model") }
+        }
         decorView = window.window!!.decorView
         contentView = decorView.findViewById(android.R.id.content)
         lastKnownConfig = resources.configuration
@@ -748,6 +776,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             // EditorInfo can be different in onStartInput and onStartInputView,
             // especially in browsers
             setCapFlags(flags)
+            setSuzuContext("", false)
             // for hardware keyboard, focus to allow switching input methods before onStartInputView
             if (!isNullType) {
                 focus(true)
@@ -1066,6 +1095,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     override fun onFinishInput() {
         Timber.d("onFinishInput")
         postFcitxJob {
+            setSuzuContext("", false)
             focus(false)
         }
         capabilityFlags = CapabilityFlags.DefaultFlags

@@ -24,6 +24,7 @@ object ThemeManager {
     }
 
     val BuiltinThemes = listOf(
+        ThemePreset.GboardStage1Light,
         ThemePreset.MaterialLight,
         ThemePreset.MaterialDark,
         ThemePreset.PixelLight,

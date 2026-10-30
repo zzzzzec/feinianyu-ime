@@ -1,3 +1,6 @@
+import java.security.MessageDigest
+import java.util.Properties
+
 plugins {
     id("org.fcitx.fcitx5.android.app-convention")
     id("org.fcitx.fcitx5.android.native-app-convention")
@@ -9,11 +12,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val personalSigningFile = rootProject.file(".private/signing.properties")
+val personalSigning = Properties().apply {
+    if (personalSigningFile.isFile) personalSigningFile.inputStream().use { load(it) }
+}
+
 android {
     namespace = "org.fcitx.fcitx5.android"
 
     defaultConfig {
-        applicationId = "org.fcitx.fcitx5.android"
+        applicationId = "dev.feinianyu.ime"
+        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.2.0"
+        buildConfigField("String", "UPDATE_REPOSITORY", "\"zzzzzec/feinianyu-ime\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         @Suppress("UnstableApiUsage")
@@ -37,25 +47,64 @@ android {
         viewBinding = true
         resValues = true
     }
+    sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
 
     buildTypes {
         release {
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round")
-            resValue("string", "app_name", "@string/app_name_release")
+            resValue("string", "app_name", "@string/personal_app_name")
             proguardFile("proguard-rules.pro")
         }
         debug {
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher_debug")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round_debug")
-            resValue("string", "app_name", "@string/app_name_debug")
+            resValue("string", "app_name", "@string/personal_app_name")
+            if (personalSigningFile.isFile) applicationIdSuffix = ""
         }
     }
 
+    if (personalSigningFile.isFile) {
+        val personal = signingConfigs.create("personal") {
+            storeFile = rootProject.file(personalSigning.getProperty("storeFile"))
+            storePassword = personalSigning.getProperty("storePassword")
+            keyAlias = personalSigning.getProperty("keyAlias")
+            keyPassword = personalSigning.getProperty("keyPassword")
+        }
+        buildTypes.getByName("debug").signingConfig = personal
+        buildTypes.getByName("release").signingConfig = personal
+    }
+
     androidResources {
+        noCompress += "gguf"
         @Suppress("UnstableApiUsage")
         generateLocaleConfig = true
     }
+}
+
+val verifyBundledSuzu = tasks.register("verifyBundledSuzu") {
+    val model = layout.projectDirectory.file("src/main/assets/suzu/suzu-2.4.q8_0.gguf")
+    val vocab = layout.projectDirectory.file("src/main/assets/suzu/suzu-2.4.q8_0.gguf.vocab.txt")
+    inputs.files(model, vocab)
+    doLast {
+        check(model.asFile.isFile && vocab.asFile.isFile) { "Run scripts/fetch-suzu.ps1 before building." }
+        val sha = MessageDigest.getInstance("SHA-256")
+        model.asFile.inputStream().buffered().use { input ->
+            val bytes = ByteArray(65536)
+            while (true) {
+                val size = input.read(bytes)
+                if (size < 0) break
+                sha.update(bytes, 0, size)
+            }
+        }
+        check(sha.digest().joinToString("") { "%02x".format(it) } == "a2ff2c46110c7ba47746871eaf8ff37cc4fab58105ddbe11e0a768e340cdb996") { "Suzu model checksum mismatch" }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyBundledSuzu) }
+
+generateDataDescriptor {
+    // SuzuAssets extracts these once to noBackupFilesDir. They are not Fcitx data.
+    excludes.addAll("suzu/suzu-2.4.q8_0.gguf", "suzu/suzu-2.4.q8_0.gguf.vocab.txt")
 }
 
 fcitxComponent {

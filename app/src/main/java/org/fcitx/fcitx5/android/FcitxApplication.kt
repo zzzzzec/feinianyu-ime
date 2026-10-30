@@ -21,6 +21,10 @@ import kotlinx.coroutines.plus
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.data.prefs.ConfigMigrations
+import org.fcitx.fcitx5.android.update.AppUpdater
+import kotlinx.coroutines.launch
+import java.io.File
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.ui.main.LogActivity
 import org.fcitx.fcitx5.android.utils.AppUtil
@@ -125,6 +129,8 @@ class FcitxApplication : Application() {
 
         Timber.d("isDirectBootMode=$isDirectBootMode")
 
+        runCatching { ConfigMigrations.migrate(sharedPrefs, File(ctx.noBackupFilesDir, "config-backups")) }
+            .onFailure { Timber.e(it, "Configuration migration failed; previous snapshot retained") }
         AppPrefs.init(sharedPrefs)
         // record last pid for crash logs
         AppPrefs.getInstance().internal.pid.apply {
@@ -136,6 +142,10 @@ class FcitxApplication : Application() {
         ClipboardManager.init(ctx)
         ThemeManager.init(resources.configuration)
         Locales.onLocaleChange(resources.configuration)
+        if (!isDirectBootMode) {
+            AppUpdater.schedule(this)
+            coroutineScope.launch { AppUpdater.check(this@FcitxApplication) }
+        }
         registerReceiver(shutdownReceiver, IntentFilter(Intent.ACTION_SHUTDOWN))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !isDirectBootMode) {
             AppPrefs.getInstance().syncToDeviceEncryptedStorage()
