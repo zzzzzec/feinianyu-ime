@@ -447,6 +447,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     private val dispatcher = FcitxDispatcher(object : FcitxDispatcher.FcitxController {
         override fun nativeStartup() {
             DataManager.sync()
+            org.fcitx.fcitx5.android.data.pinyin.BundledPinyinDictionaries.install(context)
             val locale = Locales.fcitxLocale
             val dataDir = DataManager.dataDir.absolutePath
             val plugins = DataManager.getLoadedPlugins()

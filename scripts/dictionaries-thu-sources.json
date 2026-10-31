@@ -1,0 +1,36 @@
+{
+  "repo": "thunlp/THUOCL",
+  "revision": "a30ce79d895d01ab5132a5c74c29703ff7efb4cc",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha": "968c114bb4e6b605b2e984833d89a3895d1ed2b7",
+      "size": 1063
+    },
+    {
+      "path": "data/THUOCL_IT.txt",
+      "sha": "0209242c6f47eec97301656ce6fd8b8a091a4a8f",
+      "size": 308187
+    },
+    {
+      "path": "data/THUOCL_chengyu.txt",
+      "sha": "44d91b3349753dc7f43b53e8cf64cda790c9ea22",
+      "size": 166549
+    },
+    {
+      "path": "data/THUOCL_diming.txt",
+      "sha": "c854976734d6fd81d7370ddd2e59f0591671ccab",
+      "size": 640673
+    },
+    {
+      "path": "data/THUOCL_lishimingren.txt",
+      "sha": "abeb572f40406edd2ece2e81a5442a2f0ee48784",
+      "size": 163136
+    },
+    {
+      "path": "data/THUOCL_poem.txt",
+      "size": 294695,
+      "sha": "bc15cec44ccfab0fc342e954dc8dfe1bfa40815d"
+    }
+  ]
+}

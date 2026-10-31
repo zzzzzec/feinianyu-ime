@@ -9,6 +9,9 @@
 #include <memory>
 #include <future>
 #include <fstream>
+#include <mutex>
+#include <unordered_map>
+#include <SimpleConverter.hpp>
 
 #include <android/log.h>
 
@@ -1356,3 +1359,21 @@ Java_org_fcitx_fcitx5_android_utils_Ini_writeAsIni(JNIEnv *env, jclass clazz, js
 }
 
 #pragma GCC diagnostic pop
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_org_fcitx_fcitx5_android_completion_FixedDictionaryNative_convert(JNIEnv *env, jobject, jbyteArray input, jstring config) {
+    static std::mutex mutex;
+    static std::unordered_map<std::string, std::unique_ptr<opencc::SimpleConverter>> converters;
+    try {
+        std::string text(env->GetArrayLength(input), '\0');
+        env->GetByteArrayRegion(input, 0, text.size(), reinterpret_cast<jbyte *>(text.data()));
+        std::lock_guard<std::mutex> lock(mutex);
+        std::string path = *CString(env, config);
+        auto &converter = converters[path];
+        if (!converter) converter = std::make_unique<opencc::SimpleConverter>(path);
+        const auto converted = converter->Convert(text);
+        auto result = env->NewByteArray(converted.size());
+        env->SetByteArrayRegion(result, 0, converted.size(), reinterpret_cast<const jbyte *>(converted.data()));
+        return result;
+    } catch (const std::exception &error) { throwJavaException(env, error.what()); return nullptr; }
+}

@@ -21,9 +21,13 @@ def summarize(data):
     commit = data.get("build_commit")
     if commit:
         records = [r for r in records if r.get("build_commit") == commit]
+    if data.get("app_version"):
+        records = [r for r in records if r.get("app_version") == data["app_version"]]
     inference = [r for r in records if r.get("phase") == "inference"]
     generated = [r for r in inference if r.get("state") == "generated"]
     shown = [r for r in records if r.get("phase") == "ui" and r.get("state") == "shown"]
+    dictionary = [r for r in records if r.get("phase") == "dictionary"]
+    lookup = [r["lookup_ms"] for r in dictionary if isinstance(r.get("lookup_ms"), (int, float))]
     summary = {
         "device": data.get("device"),
         "app_version": data.get("app_version"),
@@ -34,11 +38,16 @@ def summarize(data):
         "inference_outcomes": dict(Counter(r.get("state") for r in inference)),
         "ui_outcomes": dict(Counter(r.get("state") for r in records if r.get("phase") == "ui")),
         "shown_count": len(shown),
+        "shown_by_source": dict(Counter(r.get("source", "qwen") for r in shown)),
+        "dictionary": {"lookups": len(dictionary), "outcomes": dict(Counter(r.get("state") for r in dictionary)),
+                       "hits": sum(bool(r.get("matched")) for r in dictionary),
+                       "lookup_ms": {"p50": percentile(lookup, .5), "p95": percentile(lookup, .95)}},
         "candidate_counts": dict(Counter(str(r.get("candidate_count", 1)) for r in generated)),
         "selected_indices": dict(Counter(str(r.get("selected_index", 0)) for r in records if r.get("phase") == "accept")),
         "ui_budgets_ms": sorted(set(r["budget_ms"] for r in records if r.get("phase") == "ui" and "budget_ms" in r)),
         "abstain_reasons": dict(Counter(r.get("abstain_reason", "unknown") for r in inference if r.get("state") == "abstained")),
         "by_confidence_policy": {},
+        "by_source": {},
         "metrics": {},
         "note": "Top-level timing percentiles describe generated/shown samples; by_confidence_policy includes all outcomes. Timeout/cancel counts are separate. Emulator results are not phone performance.",
     }
@@ -48,6 +57,9 @@ def summarize(data):
     values = [r["end_to_end_ms"] for r in shown]
     summary["metrics"]["end_to_end_ms"] = {"n": len(values), "p50": percentile(values, .5), "p95": percentile(values, .95), "max": max(values) if values else None}
     summary["loads"] = [r for r in records if r.get("phase") == "load"]
+    for source in sorted(set(r.get("source", "qwen") for r in shown)):
+        values = [r["end_to_end_ms"] for r in shown if r.get("source", "qwen") == source]
+        summary["by_source"][source] = {"shown": len(values), "end_to_end_ms": {"p50": percentile(values, .5), "p95": percentile(values, .95), "max": max(values)}}
     memory = [r["process_peak_rss_kb"] for r in records if isinstance(r.get("process_peak_rss_kb"), (int, float))]
     summary["process_peak_rss_mib"] = round(max(memory) / 1024, 1) if memory else None
     for policy in sorted(set(r.get("confidence_policy", "legacy") for r in inference)):

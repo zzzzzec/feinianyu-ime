@@ -24,7 +24,7 @@ object CompletionPerf {
         val line = JSONObject(data.toString()).put("wall_time_ms", System.currentTimeMillis())
             .put("session_id", sessionId).put("app_version", BuildConfig.VERSION_NAME)
             .put("build_commit", BuildConfig.BUILD_GIT_HASH)
-            .put("model_id", QwenModelStore.ID).toString()
+            .put("model_id", if (data.optString("source") == "dictionary" || data.optString("phase") == "dictionary") JSONObject.NULL else QwenModelStore.ID).toString()
         scope.launch { runCatching { mutex.withLock {
             val entry = JSONObject(line)
             if (entry.optString("phase") in setOf("load", "inference")) {
@@ -56,6 +56,7 @@ object CompletionPerf {
             .put("build_commit", BuildConfig.BUILD_GIT_HASH)
             .put("runtime", "llama.cpp-b11632").put("threads", 2)
             .put("candidate_limit", CompletionText.MAX_SUGGESTIONS).put("generation", "confidence-gated-batched-greedy-v2")
+            .put("routing", "fixed-dictionary-first-v1").put("dictionary_enabled", CompletionSettings.dictionaryEnabled(context))
             .put("confidence_policy", CompletionSettings.policy(context).name)
             .put("model_id", QwenModelStore.ID).put("model_sha256", QwenModelStore.SHA256)
             .put("device", JSONObject().put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL)

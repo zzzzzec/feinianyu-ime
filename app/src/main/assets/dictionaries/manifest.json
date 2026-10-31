@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "fixed-20261031-v1",
+  "database": "fixed-v1.sqlite.bin",
+  "sha256": "f569c025f5b0096aafb539d6d679ca01f68299ef0a40a69ddb448237d564b4a2",
+  "bytes": 1429504,
+  "compressed_bytes": 739140,
+  "poems": 1232,
+  "entries": 12539,
+  "long_idioms": 134,
+  "pinyin": [
+    {
+      "id": "IT-v1",
+      "name": "飞念语-计算机",
+      "asset": "feinianyu-IT-v1.txt",
+      "entries": 12868,
+      "sha256": "522bccb50d528a700777c6bce75ee437bea5d60aca598a0de635edffa01de4f6",
+      "skipped": 3145
+    },
+    {
+      "id": "lishimingren-v1",
+      "name": "飞念语-历史人名",
+      "asset": "feinianyu-lishimingren-v1.txt",
+      "entries": 13658,
+      "sha256": "2cda21c67063c630f4e0fd831b2feeffb9b9097062bf72603c5e0257aabac7b0",
+      "skipped": 0
+    },
+    {
+      "id": "diming-v1",
+      "name": "飞念语-地名",
+      "asset": "feinianyu-diming-v1.txt",
+      "entries": 44802,
+      "sha256": "91ac2fa4a627e90c73fb9a1a119c959b2e7303843835f705033e0aca92e386a4",
+      "skipped": 3
+    },
+    {
+      "id": "chengyu-v1",
+      "name": "飞念语-成语",
+      "asset": "feinianyu-chengyu-v1.txt",
+      "entries": 8519,
+      "sha256": "4d45e4e70d415a44e982e3c3c8350cc6395bcf8aeaf828ab74349a2356b4669b",
+      "skipped": 0
+    }
+  ],
+  "sources": {
+    "poetry": "b8594f81a89752241442f2ce267d6f66f96704ee",
+    "THUOCL": "a30ce79d895d01ab5132a5c74c29703ff7efb4cc"
+  }
+}

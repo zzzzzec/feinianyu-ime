@@ -1,5 +1,7 @@
 <resources>
     <string name="completion_title">智能续写</string>
+    <string name="completion_dictionary">原文接续</string>
+    <string name="completion_dictionary_enabled">优先接续诗词与固定搭配</string>
     <string name="completion_enabled">输入后自动补全</string>
     <string name="completion_model">续写模型</string>
     <string name="completion_download">通过 Wi-Fi 下载模型</string>

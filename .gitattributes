@@ -1,0 +1,5 @@
+# Keep checksum-pinned assets identical on Windows and Unix checkouts.
+app/src/main/assets/dictionaries/*.txt text eol=lf
+app/src/main/assets/dictionaries/*.json text eol=lf
+app/src/main/assets/dictionaries/*.md text eol=lf
+app/src/main/assets/dictionaries/*.bin binary

@@ -8,6 +8,7 @@
 - **Suzu 推理层**：https://github.com/1zumiii/suzu-ime ，固定提交 a25db7850ed177bf05f5f79eee9a206e5586b955，仅复用 core/model；GPL-3.0。见 third_party/suzu/。
 - **llama.cpp**：https://github.com/ggml-org/llama.cpp ，固定 b11632；MIT。
 - **Qwen3.5-0.8B-Base**：Qwen Team / Alibaba Cloud，https://huggingface.co/Qwen/Qwen3.5-0.8B-Base ，Apache-2.0。独立下载 mradermacher 转换的 Q4_K_M 权重，未微调；固定版本、SHA-256 与运行方式见 docs/qwen-completion.md，署名及许可证位于 assets/qwen/。
+- **诗词与领域词库**：chinese-poetry/chinese-poetry（MIT，Copyright 2016 JackeyGao）和 THUNLP/THUOCL（MIT，Copyright 2018 THUNLP）。使用了清华大学开放中文词库。固定源提交、筛选方式、派生拼音及原许可证见 app/src/main/assets/dictionaries/NOTICE.md 和 docs/dictionaries.md。
 
 本项目增加了 Fcitx 候选排序适配、可调字号、浅色外观、配置迁移与应用更新。
 组合 APK 按 GPL-3.0 分发；各组件及模型的独立许可证仍须遵守，不以本声明替代。

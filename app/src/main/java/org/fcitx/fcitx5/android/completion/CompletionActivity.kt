@@ -34,6 +34,10 @@ class CompletionActivity : SettingsPageActivity() {
                 CompletionSettings.setEnabled(this@CompletionActivity, it)
                 if (it) QwenCompletionEngine.ensureLoaded(this@CompletionActivity)
             }
+            section(R.string.completion_dictionary)
+            switchRow(R.string.completion_dictionary_enabled, CompletionSettings.dictionaryEnabled(this@CompletionActivity)) {
+                CompletionSettings.setDictionaryEnabled(this@CompletionActivity, it)
+            }
             section(R.string.completion_model)
             label("Qwen3.5-0.8B-Base · Q4_K_M")
         }

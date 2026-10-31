@@ -31,4 +31,8 @@ class CompletionTextTest {
         assertEquals(emptyList<String>(), CompletionText.suggestions(listOf("\\n", "\n", "")))
         assertEquals(listOf("好"), CompletionText.suggestions(listOf("好"))) // Native confidence controls single-character offers.
     }
+    @Test fun sourceTextCanKeepCompleteSevenCharacterVerse() {
+        assertEquals(listOf("，一行白鹭上青天。"), CompletionText.suggestions(listOf("，一行白鹭上青天。"), 32))
+        assertEquals(listOf("，一行白鹭上青天"), CompletionText.suggestions(listOf("，一行白鹭上青天。")))
+    }
 }

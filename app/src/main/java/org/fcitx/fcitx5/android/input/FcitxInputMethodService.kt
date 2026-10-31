@@ -297,6 +297,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         super.onCreate()
         CompletionSettings.register(this, completionPreferenceListener)
+        lifecycleScope.launch { runCatching { FixedCompletionEngine.prepare(this@FcitxInputMethodService) } }
         if (CompletionSettings.enabled(this)) {
             QwenModelStore.download(this)
             QwenCompletionEngine.ensureLoaded(this)

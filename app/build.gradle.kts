@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.feinianyu.ime"
-        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.3.2"
+        versionName = providers.gradleProperty("personalVersionName").orNull ?: "0.3.3"
         buildConfigField("String", "UPDATE_REPOSITORY", "\"zzzzzec/feinianyu-ime\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -106,6 +106,7 @@ tasks.named("preBuild") { dependsOn(verifyBundledSuzu) }
 generateDataDescriptor {
     // SuzuAssets extracts these once to noBackupFilesDir. They are not Fcitx data.
     excludes.addAll("suzu/suzu-2.4.q8_0.gguf", "suzu/suzu-2.4.q8_0.gguf.vocab.txt")
+    excludes.addAll(fileTree("src/main/assets/dictionaries").files.map { "dictionaries/" + it.name })
 }
 
 fcitxComponent {

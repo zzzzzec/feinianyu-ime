@@ -14,6 +14,6 @@ object CompletionText {
         val count = text.codePointCount(0, text.length).coerceAtMost(maxChars)
         return text.substring(0, text.offsetByCodePoints(0, count))
     }
-    fun suggestions(raw: List<String>): List<String> = raw.asSequence()
-        .map { suggestion(it) }.filter { it.isNotBlank() }.distinct().take(MAX_SUGGESTIONS).toList()
+    fun suggestions(raw: List<String>, maxChars: Int = 8): List<String> = raw.asSequence()
+        .map { suggestion(it, maxChars) }.filter { it.isNotBlank() }.distinct().take(MAX_SUGGESTIONS).toList()
 }

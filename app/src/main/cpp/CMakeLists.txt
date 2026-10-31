@@ -47,7 +47,12 @@ target_include_directories(pinyin-customphrase INTERFACE "${CHINESE_ADDONS_PINYI
 target_link_libraries(pinyin-customphrase PRIVATE Fcitx5::Utils LibIME::Core)
 
 add_library(native-lib SHARED native-lib.cpp androidaddonloader/androidaddonloader.cpp)
+set(Marisa_DIR "${PREBUILT_DIR}/marisa/${ANDROID_ABI}/lib/cmake/Marisa")
+find_package(Marisa REQUIRED)
+set(OpenCC_DIR "${PREBUILT_DIR}/opencc/${ANDROID_ABI}/lib/cmake/opencc")
+find_package(OpenCC REQUIRED CONFIG)
 target_link_libraries(native-lib
+        OpenCC::OpenCC
         log
         libuv::uv_a
         Fcitx5::Utils

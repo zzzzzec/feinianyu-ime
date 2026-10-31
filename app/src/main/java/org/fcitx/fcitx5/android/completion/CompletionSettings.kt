@@ -9,6 +9,8 @@ object CompletionSettings {
     private fun prefs(context: Context) = context.getSharedPreferences("qwen_completion", Context.MODE_PRIVATE)
     fun enabled(context: Context) = unlocked(context) && prefs(context).getBoolean("enabled", true)
     fun setEnabled(context: Context, value: Boolean) { prefs(context).edit().putBoolean("enabled", value).apply() }
+    fun dictionaryEnabled(context: Context) = prefs(context).getBoolean("dictionary_enabled", true)
+    fun setDictionaryEnabled(context: Context, value: Boolean) { prefs(context).edit().putBoolean("dictionary_enabled", value).apply() }
     fun contextChars(context: Context) = prefs(context).getInt("context_chars", 128).coerceIn(32, 256)
     fun setContextChars(context: Context, value: Int) { prefs(context).edit().putInt("context_chars", value.coerceIn(32, 256)).apply() }
     fun budgetMs(context: Context) = prefs(context).getInt("budget_ms", 800).coerceIn(300, 10000)

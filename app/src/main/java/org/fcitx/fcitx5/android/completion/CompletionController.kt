@@ -19,7 +19,7 @@ class CompletionController(
     private var job: Job? = null
     private var epoch = 0L
     private var activeId = 0L
-    private data class Offer(val snapshot: CompletionSnapshot, val texts: List<String>, val policy: String)
+    private data class Offer(val snapshot: CompletionSnapshot, val texts: List<String>, val policy: String, val source: String)
     private var offered: Offer? = null
     fun invalidate(clearContext: Boolean = false) {
         epoch++
@@ -33,29 +33,34 @@ class CompletionController(
         if (!CompletionSettings.enabled(context)) return
         val start = SystemClock.elapsedRealtime()
         val expectedEpoch = epoch
-        QwenCompletionEngine.ensureLoaded(context)
         job = scope.launch {
             delay(CompletionSettings.DEBOUNCE_MS)
             val input = snapshot() ?: return@launch
-            if (QwenCompletionEngine.state.value != "ready") return@launch
             val id = QwenCompletionEngine.nextId(); activeId = id
             val totalBudget = CompletionSettings.budgetMs(context)
+            val dictionary = if (CompletionSettings.dictionaryEnabled(context)) FixedCompletionEngine.lookup(context, input.before, id) else null
+            if (!CompletionSettings.enabled(context) || epoch != expectedEpoch || snapshot() != input) return@launch
             val remaining = totalBudget - (SystemClock.elapsedRealtime() - start).toInt()
             if (remaining <= 0) return@launch
-            val result = QwenCompletionEngine.generate(context, input.before, id, remaining)
+            val result = if (dictionary?.optBoolean("matched") == true) dictionary else {
+                QwenCompletionEngine.ensureLoaded(context)
+                if (QwenCompletionEngine.state.value != "ready") return@launch
+                QwenCompletionEngine.generate(context, input.before, id, remaining).put("source", "qwen")
+            }
             if (!CompletionSettings.enabled(context) || epoch != expectedEpoch || snapshot() != input) return@launch
             val raw = result.optJSONArray("candidates")
             val policy = result.optString("confidence_policy")
-            val texts = CompletionText.suggestions((0 until (raw?.length() ?: 0)).map { raw!!.optString(it) })
+            val source = result.optString("source", "qwen")
+            val texts = CompletionText.suggestions((0 until (raw?.length() ?: 0)).map { raw!!.optString(it) }, if (source == "dictionary") 32 else 8)
             val elapsed = SystemClock.elapsedRealtime() - start
             if (result.optString("state") != "generated" || texts.isEmpty() || elapsed >= totalBudget) {
                 CompletionPerf.record(context, JSONObject().put("request_id", id).put("phase", "ui")
                     .put("state", if (elapsed >= totalBudget) "timeout" else if (texts.isEmpty() && result.optString("state") == "generated") "filtered" else result.optString("state"))
                     .put("end_to_end_ms", elapsed).put("budget_ms", totalBudget).put("candidate_count", texts.size)
-                    .put("confidence_policy", policy))
+                    .put("confidence_policy", policy).put("source", source))
                 return@launch
             }
-            offered = Offer(input, texts, policy)
+            offered = Offer(input, texts, policy, source)
             val accepted = display(texts) {
                 val now = SystemClock.elapsedRealtime() - start
                 val valid = CompletionSettings.enabled(context) && epoch == expectedEpoch && snapshot() == input && now < totalBudget
@@ -63,7 +68,7 @@ class CompletionController(
                 CompletionPerf.record(context, JSONObject().put("request_id", id).put("phase", "ui")
                     .put("state", if (valid) "shown" else "late_or_stale")
                     .put("end_to_end_ms", now).put("debounce_ms", CompletionSettings.DEBOUNCE_MS)
-                    .put("budget_ms", totalBudget).put("candidate_count", texts.size).put("confidence_policy", policy)
+                    .put("budget_ms", totalBudget).put("candidate_count", texts.size).put("confidence_policy", policy).put("source", source)
                     .put("suggestion_chars", texts.sumOf { it.codePointCount(0, it.length) }))
                 valid
             }
@@ -71,14 +76,14 @@ class CompletionController(
         }
     }
     fun accept(index: Int): Boolean {
-        val (input, texts, policy) = offered ?: return false
+        val (input, texts, policy, source) = offered ?: return false
         val text = texts.getOrNull(index) ?: return false
         if (!CompletionSettings.enabled(context) || snapshot() != input) { invalidate(); return false }
         val id = activeId
         invalidate()
         commit(text)
         CompletionPerf.record(context, JSONObject().put("request_id", id).put("phase", "accept").put("state", "accepted")
-            .put("selected_index", index).put("candidate_count", texts.size).put("confidence_policy", policy))
+            .put("selected_index", index).put("candidate_count", texts.size).put("confidence_policy", policy).put("source", source))
         return true
     }
 }

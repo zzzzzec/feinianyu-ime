@@ -2,6 +2,8 @@
     <string name="completion_title">Smart completion</string>
     <string name="completion_enabled">Complete after typing</string>
     <string name="completion_model">Completion model</string>
+    <string name="completion_dictionary">Fixed text</string>
+    <string name="completion_dictionary_enabled">Poetry and fixed phrases first</string>
     <string name="completion_download">Download model over Wi-Fi</string>
     <string name="completion_model_ready">Model ready · retained across app updates</string>
     <string name="completion_model_downloading">Downloading: %1$d / %2$d MiB · Wi-Fi</string>
