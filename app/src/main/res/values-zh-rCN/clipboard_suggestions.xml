@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_paste_text">粘贴复制的文字</string>
+    <string name="clipboard_paste_image">粘贴复制的图片</string>
+</resources>

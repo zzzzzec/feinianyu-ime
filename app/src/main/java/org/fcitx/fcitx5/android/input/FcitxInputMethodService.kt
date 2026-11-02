@@ -121,6 +121,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             return null
         }
         if (!isInputViewShown) return blocked("ime_hidden")
+        if (inputView?.hasClipboardSuggestion == true) return blocked("clipboard_suggestion")
         if (inputView?.completionAvailable != true) return blocked("keyboard_hidden")
         if (!SuzuContextPolicy.allows(currentInputEditorInfo)) return blocked("editor_policy")
         if (composing.isNotEmpty() || composingText.isNotEmpty()) return blocked("composing")
@@ -138,6 +139,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }.getOrNull()
     }
     fun cancelCompletion() { completion.invalidate() }
+    fun dismissClipboardSuggestion() { inputView?.dismissClipboardSuggestion() }
+    fun onClipboardSuggestionChanged(present: Boolean) {
+        if (present) completion.invalidate()
+        else inputView?.post { completion.changed() }
+    }
     fun acceptCompletion(index: Int) = completion.accept(index)
     private fun commitCompletion(text: String) { commitText(text, source = "completion") }
     private val completionPreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -518,9 +524,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         currentInputConnection.setSelection(target, target)
     }
 
-    fun commitText(text: String, cursor: Int = -1, source: String = "direct") {
+    fun commitText(text: String, cursor: Int = -1, source: String = "direct"): Boolean {
         completion.invalidate()
-        val ic = currentInputConnection ?: return
+        val ic = currentInputConnection ?: return false
         val replaceStart = if (composing.isEmpty()) selection.latest.start else composing.start
         val replaceEnd = if (composing.isEmpty()) selection.latest.end else composing.end
         var applied = false
@@ -538,7 +544,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
             InputDataset.editorCommit(text, source, applied, replaceStart, replaceEnd)
             completion.changed()
-            return
+            return applied
         }
         // committed text should replace composing (if any), replace selected range (if any),
         // or simply prepend before cursor
@@ -557,10 +563,15 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         }
         InputDataset.editorCommit(text, source, applied, replaceStart, replaceEnd)
         completion.changed()
+        return applied
     }
 
     fun pasteClipboardEntry(entry: org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry): Boolean {
-        if (!entry.isImage) { if (currentInputConnection == null) return false; commitText(entry.text, source = "paste"); return true }
+        if (!entry.isImage) {
+            val applied = commitText(entry.text, source = "paste")
+            if (applied) org.fcitx.fcitx5.android.data.clipboard.ClipboardManager.markSuggestionUsed(entry)
+            return applied
+        }
         val connection = currentInputConnection ?: return false
         val info = currentInputEditorInfo ?: return false
         return try {
@@ -568,7 +579,10 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             if (content.supports(info, entry.type)) {
                 finishComposing()
                 postFcitxJob { reset() }
-                if (content.commit(this, connection, info, entry)) return true
+                if (content.commit(this, connection, info, entry)) {
+                    org.fcitx.fcitx5.android.data.clipboard.ClipboardManager.markSuggestionUsed(entry)
+                    return true
+                }
             }
             content.copy(this, entry)
             toast(R.string.clipboard_image_paste_fallback)

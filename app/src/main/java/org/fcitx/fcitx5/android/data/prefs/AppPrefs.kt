@@ -36,6 +36,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val pid = int("pid", 0)
         val editorInfoInspector = bool("editor_info_inspector", false)
         val needNotifications = bool("need_notifications", true)
+        val usedClipboardSuggestion = string("used_clipboard_suggestion", "")
     }
 
     inner class Advanced : ManagedPreferenceCategory(R.string.advanced, sharedPreferences) {
@@ -348,7 +349,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val clipboardItemTimeout = int(
             R.string.clipboard_suggestion_timeout,
             "clipboard_item_timeout",
-            30,
+            120,
             -1,
             Int.MAX_VALUE,
             "s"

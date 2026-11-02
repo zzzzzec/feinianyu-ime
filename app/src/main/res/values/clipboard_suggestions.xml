@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clipboard_paste_text">Paste copied text</string>
+    <string name="clipboard_paste_image">Paste copied image</string>
+    <item name="clipboard_suggestion_chip" type="id" />
+</resources>

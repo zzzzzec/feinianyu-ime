@@ -30,6 +30,10 @@ class ClipboardRepository(
 
     private fun update(entry: ClipboardEntry?) { lastEntry = entry; onUpdate(entry) }
 
+    suspend fun clearSuggestion(isCurrent: () -> Boolean = { true }) = withContext(Dispatchers.IO) {
+        mutex.withLock { if (isCurrent()) update(null); cleanUp() }
+    }
+
     suspend fun initialize() = withContext(Dispatchers.IO) {
         mutex.withLock { dao.realDelete(); cleanUp() }
     }
@@ -44,7 +48,8 @@ class ClipboardRepository(
         if (obsolete.isNotEmpty()) dao.deleteEntries(obsolete)
     }
 
-    suspend fun capture(entry: ClipboardEntry, source: ClipboardImageStore.Opened? = null, promoteToLast: Boolean = true) = withContext(Dispatchers.IO) {
+    suspend fun capture(entry: ClipboardEntry, source: ClipboardImageStore.Opened? = null, promoteToLast: Boolean = true,
+                        isCurrent: () -> Boolean = { true }) = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
                 val prepared = if (source == null) entry else source.use {
@@ -52,7 +57,7 @@ class ClipboardRepository(
                     val stored = it.descriptor.createInputStream().use(images::save)
                     entry.copy(text = "", type = stored.mime, imageFile = stored.file)
                 }
-                if (!prepared.isImage && prepared.text.isBlank()) return@withLock
+                if (!prepared.isImage && prepared.text.isEmpty()) return@withLock
                 val duplicate = if (prepared.isImage) dao.findImage(prepared.imageFile!!, prepared.sensitive) else dao.find(prepared.text, prepared.sensitive)
                 val saved = database.withTransaction {
                     val value = if (duplicate != null) {
@@ -63,7 +68,7 @@ class ClipboardRepository(
                     trimRows()
                     value
                 }
-                if (promoteToLast) update(saved)
+                if (promoteToLast && isCurrent() && saved.timestamp >= (lastEntry?.timestamp ?: Long.MIN_VALUE)) update(saved)
             } finally { source?.close(); cleanUp() }
         }
     }

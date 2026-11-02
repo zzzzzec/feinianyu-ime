@@ -2,7 +2,7 @@
 
 基于 Fcitx5 Android 的中文输入法，使用 Suzu 重排拼音候选，并支持 Qwen 上屏后短语补全。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.5.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.6.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 
@@ -59,6 +59,10 @@
 这是独立应用包，与上游 Fcitx5 的数据目录分开。后续版本覆盖安装本应用会保留其数据；不要卸载后重装。
 
 ### 图片剪贴板
+
+复制文字或图片后，进入输入框可在键盘候选栏看到快捷粘贴按钮。文字按整段原文粘贴，不拆词、不提取电话或链接；长文只缩短预览，图片显示缩略图。开始输入后提示收起，拼音候选优先；待粘贴内容优先于 Qwen 续写。成功粘贴后，同一次复制不再重复提示，重新复制可再次出现。
+
+在 **剪贴板 → 显示剪贴板提示 / 剪贴板提示超时** 控制开关和有效期。新默认有效期为 120 秒，已有设置保留，-1 表示不限时。敏感标记、密码和隐私输入框遮盖预览。图片插入取决于目标应用的图片输入支持。
 
 在其他应用复制图片后，打开键盘工具栏的剪贴板，可看到图片缩略图。
 图片以原始文件保存，替换系统剪贴板后仍可从历史使用；重复内容会合并。

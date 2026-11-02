@@ -31,6 +31,7 @@ import org.fcitx.fcitx5.android.core.CapabilityFlag
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.FcitxEvent.CandidateListEvent
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
+import org.fcitx.fcitx5.android.data.clipboard.ClipboardSuggestion
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
@@ -109,6 +110,10 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var clipboardTimeoutJob: Job? = null
 
     private var isClipboardFresh: Boolean = false
+    private var clipboardEntry: ClipboardEntry? = null
+    private var dismissedClipboardKey: String? = null
+    private var maskClipboardInEditor = true
+    val hasClipboardSuggestion get() = isClipboardFresh
     private var isInlineSuggestionPresent: Boolean = false
     private var isCapabilityFlagsPassword: Boolean = false
     private var isKeyboardLayoutNumber: Boolean = false
@@ -121,51 +126,57 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     @Keep
     private val onClipboardUpdateListener =
         ClipboardManager.OnClipboardUpdateListener {
-            if (!clipboardSuggestion.getValue()) return@OnClipboardUpdateListener
             service.lifecycleScope.launch {
-                if (it == null || (!it.isImage && it.text.isEmpty())) {
-                    isClipboardFresh = false
-                } else {
-                    idleUi.clipboardUi.setEntry(it, it.sensitive && clipboardMaskSensitive)
-                    isClipboardFresh = true
-                    launchClipboardTimeoutJob()
-                }
-                evalIdleUiState()
+                updateClipboardSuggestion(it)
             }
         }
 
     @Keep
     private val onClipboardSuggestionUpdateListener =
-        ManagedPreference.OnChangeListener<Boolean> { _, it ->
-            if (!it) {
-                isClipboardFresh = false
-                evalIdleUiState()
-                clipboardTimeoutJob?.cancel()
-                clipboardTimeoutJob = null
-            }
+        ManagedPreference.OnChangeListener<Boolean> { _, _ ->
+            service.lifecycleScope.launch { updateClipboardSuggestion(ClipboardManager.lastEntry) }
         }
 
     @Keep
     private val onClipboardTimeoutUpdateListener =
         ManagedPreference.OnChangeListener<Int> { _, _ ->
-            when (idleUi.currentState) {
-                IdleUi.State.Clipboard -> {
-                    // renew timeout when clipboard suggestion is present
-                    launchClipboardTimeoutJob()
-                }
-                else -> {}
-            }
+            service.lifecycleScope.launch { updateClipboardSuggestion(ClipboardManager.lastEntry) }
         }
+
+    private fun updateClipboardSuggestion(entry: ClipboardEntry?) {
+        clipboardTimeoutJob?.cancel()
+        clipboardTimeoutJob = null
+        val wasFresh = isClipboardFresh
+        val eligible = entry != null && (entry.isImage || entry.text.isNotEmpty()) &&
+            prefs.clipboard.clipboardListening.getValue() && clipboardSuggestion.getValue() &&
+            !ClipboardManager.suggestionUsed(entry) && ClipboardSuggestion.key(entry) != dismissedClipboardKey &&
+            ClipboardSuggestion.remainingMillis(entry.timestamp, clipboardItemTimeout.getValue()) > 0
+        clipboardEntry = entry.takeIf { eligible }
+        isClipboardFresh = eligible
+        if (eligible) {
+            idleUi.clipboardUi.setEntry(entry, maskClipboardInEditor || (entry.sensitive && clipboardMaskSensitive))
+            service.onClipboardSuggestionChanged(true)
+            launchClipboardTimeoutJob()
+        } else if (wasFresh) service.onClipboardSuggestionChanged(false)
+        evalIdleUiState()
+    }
+
+    fun dismissClipboardSuggestion() {
+        val entry = clipboardEntry ?: return
+        dismissedClipboardKey = ClipboardSuggestion.key(entry)
+        updateClipboardSuggestion(entry)
+    }
 
     private fun launchClipboardTimeoutJob() {
         clipboardTimeoutJob?.cancel()
-        val timeout = clipboardItemTimeout.getValue() * 1000L
-        // never transition to ClipboardTimedOut state when timeout < 0
-        if (timeout < 0L) return
+        clipboardTimeoutJob = null
+        val entry = clipboardEntry ?: return
+        val timeout = ClipboardSuggestion.remainingMillis(entry.timestamp, clipboardItemTimeout.getValue())
+        if (timeout == Long.MAX_VALUE) return
         clipboardTimeoutJob = service.lifecycleScope.launch {
             delay(timeout)
-            isClipboardFresh = false
             clipboardTimeoutJob = null
+            updateClipboardSuggestion(entry)
         }
     }
 
@@ -305,16 +316,12 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             }
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
-                    ClipboardManager.lastEntry?.let {
+                    clipboardEntry?.let {
                         service.pasteClipboardEntry(it)
                     }
-                    clipboardTimeoutJob?.cancel()
-                    clipboardTimeoutJob = null
-                    isClipboardFresh = false
-                    evalIdleUiState()
                 }
                 setOnLongClickListener {
-                    ClipboardManager.lastEntry?.let {
+                    clipboardEntry?.let {
                         if (it.isImage) windowManager.attachWindow(ClipboardWindow())
                         else AppUtil.launchClipboardEdit(context, it.id, true)
                     }
@@ -416,19 +423,17 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     override fun onScopeSetupFinished(scope: DynamicScope) {
-        ClipboardManager.lastEntry?.let {
-            val now = System.currentTimeMillis()
-            val clipboardTimeout = clipboardItemTimeout.getValue() * 1000L
-            if (now - it.timestamp < clipboardTimeout) {
-                onClipboardUpdateListener.onUpdate(it)
-            }
-        }
+        updateClipboardSuggestion(ClipboardManager.lastEntry)
         ClipboardManager.addOnUpdateListener(onClipboardUpdateListener)
         clipboardSuggestion.registerOnChangeListener(onClipboardSuggestionUpdateListener)
+        prefs.clipboard.clipboardListening.registerOnChangeListener(onClipboardSuggestionUpdateListener)
         clipboardItemTimeout.registerOnChangeListener(onClipboardTimeoutUpdateListener)
     }
 
     override fun onStartInput(info: EditorInfo, capFlags: CapabilityFlags) {
+        dismissedClipboardKey = null
+        maskClipboardInEditor = capFlags.has(CapabilityFlag.Password) ||
+            info.imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             idleUi.privateMode(info.imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING))
         }
@@ -445,10 +450,12 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             shouldShowVoiceInput,
             if (shouldShowVoiceInput) switchToVoiceInputCallback else hideKeyboardCallback
         )
-        evalIdleUiState()
+        ClipboardManager.refreshForInput()
+        updateClipboardSuggestion(ClipboardManager.lastEntry)
     }
 
     override fun onPreeditEmptyStateUpdate(empty: Boolean) {
+        if (!empty) dismissClipboardSuggestion()
         barStateMachine.push(PreeditUpdated, PreeditEmpty to empty)
     }
 

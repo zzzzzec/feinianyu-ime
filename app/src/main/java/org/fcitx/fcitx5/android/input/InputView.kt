@@ -117,8 +117,10 @@ class InputView(
     private var candidateVersion = 0L
     private var completionVersion = 0L
     val hasCompletionCandidates get() = completionCandidates != null
+    val hasClipboardSuggestion get() = kawaiiBar.hasClipboardSuggestion
+    fun dismissClipboardSuggestion() = kawaiiBar.dismissClipboardSuggestion()
     fun completionCandidatesSnapshot(): Array<CandidateWord>? = completionCandidates?.copyOf()
-    val completionAvailable get() = isShown && (windowManager.isAttached(keyboardWindow) ||
+    val completionAvailable get() = isShown && !hasClipboardSuggestion && (windowManager.isAttached(keyboardWindow) ||
         windowManager.attachedWindow is BaseExpandedCandidateWindow<*>)
 
     private fun renderCandidates(data: FcitxEvent.CandidateListEvent.Data) {

@@ -89,6 +89,8 @@ class CommonKeyActionListener :
 
     val listener by lazy {
         KeyActionListener { action, _ ->
+            if (action is FcitxKeyAction || action is SymAction || action is CommitAction ||
+                action is UnicodeAction || action is QuickPhraseAction) service.dismissClipboardSuggestion()
             service.cancelCompletion()
             when (action) {
                 is FcitxKeyAction -> service.postFcitxJob {

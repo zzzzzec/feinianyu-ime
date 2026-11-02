@@ -18,6 +18,7 @@ import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.utils.*
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicLong
 
 object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
@@ -34,6 +35,24 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     var transformer: ((String) -> String)? = null
     val itemCount get() = repository.itemCount
     val lastEntry get() = repository.lastEntry
+
+    fun suggestionUsed(entry: ClipboardEntry) =
+        AppPrefs.getInstance().internal.usedClipboardSuggestion.getValue() == ClipboardSuggestion.key(entry)
+
+    fun markSuggestionUsed(entry: ClipboardEntry) {
+        AppPrefs.getInstance().internal.usedClipboardSuggestion.setValue(ClipboardSuggestion.key(entry))
+        onUpdateListeners.forEach { it.onUpdate(lastEntry) }
+    }
+
+    /** Re-read the system clip when entering an editor, including after a cold IME start. */
+    fun refreshForInput() {
+        if (!enabledPref.getValue()) return
+        val clip = try { clipboardManager.primaryClip } catch (_: Exception) { return }
+        if (clip == null) return
+        // Pre-O has no copy timestamp. Avoid turning the same clip into a new copy on every focus.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O && legacyClipIdentity(clip) == lastLegacyClipIdentity) return
+        onPrimaryClipChanged()
+    }
 
     @Keep private val enabledListener = ManagedPreference.OnChangeListener<Boolean> { _, value ->
         if (value) { clipboardManager.addPrimaryClipChangedListener(this); onPrimaryClipChanged() }
@@ -75,11 +94,25 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
 
     private var lastClipTimestamp = -1L
     private var lastClipHash = 0
+    private var lastLegacyClipIdentity: String? = null
+    private val clipEpoch = AtomicLong()
+
+    private fun legacyClipIdentity(clip: android.content.ClipData): String {
+        val item = clip.takeIf { it.itemCount > 0 }?.getItemAt(0)
+        val mimeTypes = clip.description.filterMimeTypes("*/*")?.joinToString().orEmpty()
+        return "${item?.text}\u0000${item?.uri}\u0000$mimeTypes"
+    }
 
     override fun onPrimaryClipChanged() {
         val clip = try { clipboardManager.primaryClip } catch (_: Exception) { return }
         if (clip == null) {
-            if (InputMethodUtil.isSelected()) { ClipboardImages.primaryFile = null; launch { repository.trim() } }
+            if (InputMethodUtil.isSelected()) {
+                lastClipTimestamp = -1L
+                lastLegacyClipIdentity = null
+                val epoch = clipEpoch.incrementAndGet()
+                ClipboardImages.primaryFile = null
+                launch { repository.clearSuggestion { epoch == clipEpoch.get() }; repository.trim() }
+            }
             return
         }
         ClipboardImages.primaryFile = ClipboardImages.store.ownedName(clip.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri)
@@ -92,15 +125,26 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
             val hash = clip.hashCode()
             if (timestamp - lastClipTimestamp < 100L && hash == lastClipHash) return
             lastClipTimestamp = timestamp; lastClipHash = hash
+            lastLegacyClipIdentity = legacyClipIdentity(clip)
         }
+        val epoch = clipEpoch.incrementAndGet()
         val image = try { ClipboardImages.store.open(clip) } catch (error: Exception) {
-            launch { withContext(Dispatchers.Main) { appContext.toast(R.string.clipboard_image_read_failed) } }
+            launch {
+                repository.clearSuggestion { epoch == clipEpoch.get() }
+                withContext(Dispatchers.Main) { appContext.toast(R.string.clipboard_image_read_failed) }
+            }
             return
         }
         val entry = if (image != null) ClipboardEntry(text = "", timestamp = clip.timestamp(), sensitive = ClipboardEntry.isSensitive(clip.description))
-            else ClipboardEntry.fromClipData(clip, transformer) ?: return
+            else ClipboardEntry.fromClipData(clip, transformer) ?: run {
+                launch { repository.clearSuggestion { epoch == clipEpoch.get() } }
+                return
+            }
         launch {
-            try { repository.capture(entry, image) }
+            try {
+                repository.clearSuggestion { epoch == clipEpoch.get() }
+                repository.capture(entry, image, isCurrent = { epoch == clipEpoch.get() })
+            }
             catch (cancelled: CancellationException) { image?.close(); throw cancelled }
             catch (error: Exception) {
                 // Never include clipboard text or source URIs in runtime logs.
