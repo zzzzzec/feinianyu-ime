@@ -79,7 +79,7 @@ class SpeechActivity : SettingsPageActivity() {
                 id = R.id.speech_test_input
                 hint = getString(R.string.speech_try_hint)
                 inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                minLines = 2; textSize = 16f
+                minLines = 2; maxLines = 4; textSize = 16f
             }, LinearLayout.LayoutParams(-1, -2).apply { marginStart = dp(16); marginEnd = dp(16) })
             section(R.string.speech_perf)
             actionRow(R.string.speech_export_perf, R.drawable.ic_baseline_save_24) {

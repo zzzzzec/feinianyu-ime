@@ -34,10 +34,12 @@ class SpeechUiTest {
         val oldCompletion = CompletionSettings.enabled(app)
         val oldClipboard = prefs.clipboard.clipboardSuggestion.getValue()
         val oldMode = prefs.candidates.mode.getValue()
+        val oldHeight = prefs.keyboard.keyboardHeightPercent.getValue()
         val oldSource = SpeechAudioSources.factory
         InputDataset.setEnabled(app, false); TelemetrySettings.setPerformance(app, false)
         SpeechSettings.setEnabled(app, true); CompletionSettings.setEnabled(app, true)
         prefs.clipboard.clipboardSuggestion.setValue(false); prefs.candidates.mode.setValue(FloatingCandidatesMode.Disabled)
+        prefs.keyboard.keyboardHeightPercent.setValue(18)
         fun shell(command: String) { automation.executeShellCommand(command).use { fd -> java.io.FileInputStream(fd.fileDescriptor).use { it.readBytes() } } }
         fun nodes(): List<AccessibilityNodeInfo> {
             fun flatten(n: AccessibilityNodeInfo): List<AccessibilityNodeInfo> = listOf(n) + (0 until n.childCount).mapNotNull(n::getChild).flatMap(::flatten)
@@ -58,8 +60,6 @@ class SpeechUiTest {
         val imm = activity.getSystemService(InputMethodManager::class.java)
         fun focus() = instrumentation.runOnMainSync {
             editor.requestFocus(); imm.restartInput(editor); imm.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT)
-            activity.findViewById<NestedScrollView>(R.id.scroll).scrollTo(0,
-                (editor.top - 100 * app.resources.displayMetrics.density).toInt().coerceAtLeast(0))
         }
         try {
             shell("ime set ${app.packageName}/org.fcitx.fcitx5.android.input.FcitxInputMethodService")
@@ -67,6 +67,10 @@ class SpeechUiTest {
             waitUntil("microphone is present without installing another voice IME") { item("voice_input_button")?.isClickable == true }
             val bounds = Rect(); item("voice_input_button")!!.getBoundsInScreen(bounds)
             assertTrue("microphone should be on the right edge", bounds.centerX() > app.resources.displayMetrics.widthPixels * 0.9)
+            waitUntil("the trial editor must scroll above the keyboard automatically") {
+                val location = IntArray(2); editor.getLocationOnScreen(location)
+                location[1] + editor.height <= bounds.top
+            }
             screenshot("speech-toolbar.png")
             QwenCompletionEngine.ensureLoaded(app)
             waitUntil("completion model ready before ASR resource handover") { QwenCompletionEngine.state.value == "ready" }
@@ -116,6 +120,7 @@ class SpeechUiTest {
             InputDataset.setEnabled(app, oldCapture); TelemetrySettings.setPerformance(app, oldPerf)
             SpeechSettings.setEnabled(app, oldEnabled); CompletionSettings.setEnabled(app, oldCompletion)
             prefs.clipboard.clipboardSuggestion.setValue(oldClipboard); prefs.candidates.mode.setValue(oldMode)
+            prefs.keyboard.keyboardHeightPercent.setValue(oldHeight)
             instrumentation.runOnMainSync { activity.finish() }
         }
     }

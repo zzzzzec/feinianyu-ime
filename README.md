@@ -2,7 +2,7 @@
 
 基于 Fcitx5 Android 的中文输入法，使用 Suzu 重排拼音候选，并支持 Qwen 上屏后短语补全。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.8.md) · [语音输入](docs/speech-input.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.9.md) · [语音输入](docs/speech-input.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 

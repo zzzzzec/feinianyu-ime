@@ -4,6 +4,8 @@ package org.fcitx.fcitx5.android.ui.common
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.EditText
+import android.graphics.Rect
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -35,8 +37,23 @@ abstract class SettingsPageActivity : AppCompatActivity() {
             }
             binding.root.updatePadding(top = bars.top)
             val bottom = if (followKeyboard) maxOf(bars.bottom, insets.getInsets(WindowInsetsCompat.Type.ime()).bottom) else bars.bottom
-            binding.scroll.updatePadding(bottom = bottom)
+            // Resize the viewport, not just its content padding: NestedScrollView's focus scrolling
+            // otherwise treats the area behind the IME as visible (especially with clipToPadding=false).
+            if (followKeyboard) binding.scroll.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> { bottomMargin = bottom }
+            else binding.scroll.updatePadding(bottom = bottom)
+            if (followKeyboard && insets.isVisible(WindowInsetsCompat.Type.ime())) {
+                binding.scroll.post {
+                    (currentFocus as? EditText)?.let { editor ->
+                        editor.requestRectangleOnScreen(Rect(0, 0, editor.width, editor.height + dp(16)), true)
+                    }
+                }
+            }
             insets
+        }
+        if (followKeyboard) binding.root.viewTreeObserver.addOnGlobalFocusChangeListener { _, focused ->
+            if (focused is EditText) binding.scroll.post {
+                focused.requestRectangleOnScreen(Rect(0, 0, focused.width, focused.height + dp(16)), true)
+            }
         }
         setContentView(binding.root)
         binding.root.doOnAttach { ViewCompat.requestApplyInsets(it) }
