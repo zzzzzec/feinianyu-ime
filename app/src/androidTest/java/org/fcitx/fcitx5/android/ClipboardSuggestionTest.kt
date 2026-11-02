@@ -117,7 +117,7 @@ class ClipboardSuggestionTest {
             assertTrue("Sensitive clipboard text must not appear in the preview", allNodes().none { it.text?.toString()?.contains(secret) == true })
             assertTrue(chip()!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             waitUntil("Masking must not change the pasted payload") { editor.text.toString() == secret }
-            shell("am start -n ${app.packageName}.test/org.fcitx.fcitx5.android.fixture.ImageClipboardActivity")
+            shell("am start -f 0x10008000 -n ${app.packageName}.test/org.fcitx.fcitx5.android.fixture.ImageClipboardActivity --ei sample_width 64 --ei sample_height 96")
             waitUntil("Image fixture should be visible") { allNodes().any { it.text?.toString().equals("Copy test image", ignoreCase = true) } }
             assertTrue(allNodes().first { it.text?.toString().equals("Copy test image", ignoreCase = true) }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             waitUntil("A copied image should appear as a quick-paste suggestion") { chip() != null && ClipboardManager.lastEntry?.isImage == true }
