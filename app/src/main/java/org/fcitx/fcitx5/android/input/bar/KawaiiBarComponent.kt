@@ -113,6 +113,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private var clipboardEntry: ClipboardEntry? = null
     private var dismissedClipboardKey: String? = null
     private var maskClipboardInEditor = true
+    private var preeditIsEmpty = true
+    private var candidateIsEmpty = true
     val hasClipboardSuggestion get() = isClipboardFresh
     private var isInlineSuggestionPresent: Boolean = false
     private var isCapabilityFlagsPassword: Boolean = false
@@ -159,6 +161,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             launchClipboardTimeoutJob()
         } else if (wasFresh) service.onClipboardSuggestionChanged(false)
         evalIdleUiState()
+        refreshCandidateState()
     }
 
     fun dismissClipboardSuggestion() {
@@ -456,12 +459,20 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     override fun onPreeditEmptyStateUpdate(empty: Boolean) {
+        preeditIsEmpty = empty
         if (!empty) dismissClipboardSuggestion()
         barStateMachine.push(PreeditUpdated, PreeditEmpty to empty)
+        refreshCandidateState()
     }
 
     override fun onCandidateUpdate(data: CandidateListEvent.Data) {
-        barStateMachine.push(CandidatesUpdated, CandidateEmpty to data.candidates.isEmpty())
+        candidateIsEmpty = data.candidates.isEmpty()
+        refreshCandidateState()
+    }
+
+    private fun refreshCandidateState() {
+        barStateMachine.push(CandidatesUpdated, CandidateEmpty to
+            (candidateIsEmpty || (isClipboardFresh && preeditIsEmpty)))
     }
 
     override fun onWindowAttached(window: InputWindow) {

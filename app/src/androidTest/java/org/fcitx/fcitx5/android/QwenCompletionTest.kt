@@ -63,7 +63,7 @@ class QwenCompletionTest {
         }
         File(app.filesDir, "qwen-perf-export.json").writeText(exported)
     }
-    @Test fun builtinPinyinPredictionIsOffAndCannotBeReenabled(): Unit = runBlocking {
+    @Test fun builtinPinyinPredictionIsRestoredAndSurvivesConfigChanges(): Unit = runBlocking {
         val fcitx = Fcitx(app)
         try {
             fcitx.start()
@@ -72,13 +72,13 @@ class QwenCompletionTest {
             fcitx.setCapFlags(CapabilityFlags.DefaultFlags); fcitx.focus(true)
             fcitx.setEnabledIme(arrayOf("pinyin")); fcitx.activateIme("pinyin")
             val config = fcitx.getAddonConfig("pinyin")["cfg"]
-            config.getOrCreate("Prediction").value = "True"
+            config.getOrCreate("Prediction").value = "False"
             fcitx.setAddonConfig("pinyin", config)
-            assertEquals("False", fcitx.getAddonConfig("pinyin")["cfg"]["Prediction"].value)
+            assertEquals("True", fcitx.getAddonConfig("pinyin")["cfg"]["Prediction"].value)
             for (key in "nihao") fcitx.sendKey(key)
             assertTrue(fcitx.getCandidates(0, 5).isNotEmpty())
             fcitx.select(0); delay(100)
-            assertTrue("Old post-commit predictions must be absent", fcitx.getCandidates(0, 5).isEmpty())
+            assertTrue("Native post-commit predictions must remain usable", fcitx.getCandidates(0, 5).isNotEmpty())
             fcitx.reset()
         } finally { fcitx.stop() }
     }

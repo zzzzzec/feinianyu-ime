@@ -145,7 +145,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         else inputView?.post { completion.changed() }
     }
     fun acceptCompletion(index: Int) = completion.accept(index)
-    private fun commitCompletion(text: String) { commitText(text, source = "completion") }
+    private fun commitCompletion(text: String) {
+        // Native predictions still refer to the text before this AI insertion.
+        postFcitxJob { reset() }
+        commitText(text, source = "completion")
+    }
     private val completionPreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
         lifecycleScope.launch {
             completion.invalidate(clearContext = true)

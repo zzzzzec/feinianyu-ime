@@ -96,19 +96,19 @@ public:
         p_unicode = addonMgr.addon("unicode");
         p_clipboard = addonMgr.addon("clipboard", true);
         setupCallback(p_frontend);
-        disableBuiltinPrediction();
+        enableBuiltinPrediction();
     }
 
-    // Post-commit suggestions belong to Qwen, including when its model is missing or disabled.
-    // Persist only this option; preserve all dictionary, learning and pinyin settings.
-    void disableBuiltinPrediction() {
+    // Keep native predictions available while AI is pending, disabled or unavailable.
+    // Restore the option previously forced off, preserving dictionaries and learning.
+    void enableBuiltinPrediction() {
         auto *pinyin = p_instance->addonManager().addon("pinyin", true);
         if (!pinyin || !pinyin->getConfig()) return;
         fcitx::RawConfig config;
         pinyin->getConfig()->save(config);
         auto prediction = config.get("Prediction");
-        if (prediction && prediction->value() == "False") return;
-        config["Prediction"] = "False";
+        if (prediction && prediction->value() == "True") return;
+        config["Prediction"] = "True";
         pinyin->setConfig(config);
     }
 
@@ -126,7 +126,7 @@ public:
                 p_instance->reloadAddonConfig(name);
             }
         }
-        disableBuiltinPrediction();
+        enableBuiltinPrediction();
     }
 
     void sendKey(fcitx::Key key, bool up, int timestamp) {
@@ -267,7 +267,7 @@ public:
         }
         if (addonName == "pinyin") {
             auto adjusted = config;
-            adjusted["Prediction"] = "False";
+            adjusted["Prediction"] = "True";
             addonInstance->setConfig(adjusted);
         } else addonInstance->setConfig(config);
     }
@@ -318,7 +318,7 @@ public:
             return;
         }
         engine->setConfigForInputMethod(*entry, config);
-        if (entry->addon() == "pinyin") disableBuiltinPrediction();
+        if (entry->addon() == "pinyin") enableBuiltinPrediction();
     }
 
     std::vector<AddonStatus> getAddons() {

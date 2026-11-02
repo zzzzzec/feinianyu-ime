@@ -24,7 +24,7 @@ class CandidatesPagingSource(val fcitx: FcitxConnection, val total: Int, val off
         }
         val prevKey = if (startIndex >= pageSize) startIndex - pageSize else null
         val nextKey = if (total > 0) {
-            if (startIndex + pageSize + 1 >= total) null else startIndex + pageSize
+            if (startIndex + pageSize >= total) null else startIndex + pageSize
         } else {
             if (candidates.size < pageSize) null else startIndex + pageSize
         }

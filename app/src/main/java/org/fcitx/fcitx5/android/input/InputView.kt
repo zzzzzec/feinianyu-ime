@@ -22,6 +22,8 @@ import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.CandidateWord
 import org.fcitx.fcitx5.android.core.FcitxEvent
+import org.fcitx.fcitx5.android.completion.CompletionCandidate
+import org.fcitx.fcitx5.android.completion.CompletionCandidates
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
@@ -114,12 +116,16 @@ class InputView(
     private val keyboardWindow = KeyboardWindow()
     private var nativeCandidates = FcitxEvent.CandidateListEvent.Data()
     private var completionCandidates: Array<CandidateWord>? = null
+    private var mergedCandidates: List<CompletionCandidate>? = null
     private var candidateVersion = 0L
     private var completionVersion = 0L
     val hasCompletionCandidates get() = completionCandidates != null
     val hasClipboardSuggestion get() = kawaiiBar.hasClipboardSuggestion
     fun dismissClipboardSuggestion() = kawaiiBar.dismissClipboardSuggestion()
-    fun completionCandidatesSnapshot(): Array<CandidateWord>? = completionCandidates?.copyOf()
+    fun completionCandidatesSnapshot(): Array<CandidateWord>? = mergedCandidates?.map { it.word }?.toTypedArray()
+    private fun hasNativePreedit() = fcitx.runImmediately {
+        clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty()
+    }
     val completionAvailable get() = isShown && !hasClipboardSuggestion && (windowManager.isAttached(keyboardWindow) ||
         windowManager.attachedWindow is BaseExpandedCandidateWindow<*>)
 
@@ -133,34 +139,47 @@ class InputView(
         val version = candidateVersion
         val index = holder.idx
         val candidate = holder.candidate
-        val external = hasCompletionCandidates
-        holder.itemView.id = if (external) R.id.completion_suggestion else NO_ID
-        holder.itemView.contentDescription = if (external) candidate.text else null
+        val mixed = mergedCandidates?.getOrNull(index)
+        val aiIndex = mixed?.aiIndex
+        val nativeIndex = mixed?.nativeIndex ?: index
+        val prediction = !hasNativePreedit()
+        holder.itemView.id = when {
+            aiIndex != null -> R.id.completion_suggestion
+            prediction -> R.id.native_prediction_suggestion
+            else -> NO_ID
+        }
+        holder.itemView.contentDescription = if (aiIndex != null || prediction) candidate.text else null
         holder.itemView.setOnClickListener {
             if (version != candidateVersion) return@setOnClickListener
-            if (external) {
-                if (completionCandidates?.getOrNull(index) == candidate) service.acceptCompletion(index)
-            } else fcitx.launchOnReady { it.select(index) }
+            if (aiIndex != null) {
+                if (completionCandidates?.getOrNull(aiIndex) == candidate) service.acceptCompletion(aiIndex)
+            } else {
+                service.cancelCompletion()
+                fcitx.launchOnReady {
+                    if (it.getCandidates(nativeIndex, 1).firstOrNull() == candidate) it.select(nativeIndex)
+                }
+            }
         }
-        holder.itemView.setOnLongClickListener(if (external) null else OnLongClickListener {
+        holder.itemView.setOnLongClickListener(if (aiIndex != null) null else OnLongClickListener {
             if (version != candidateVersion) return@OnLongClickListener false
-            showCandidateActionMenu(index, candidate.text, holder.ui.root)
+            showCandidateActionMenu(nativeIndex, candidate.text, holder.ui.root)
             true
         })
     }
 
     fun showCompletion(texts: List<String>?, onShown: (() -> Boolean)?): Boolean {
         val version = ++completionVersion
-        if (texts.isNullOrEmpty() || !completionAvailable) {
+        if (texts.isNullOrEmpty() || !completionAvailable || hasNativePreedit()) {
             if (completionCandidates != null) {
                 completionCandidates = null
+                mergedCandidates = null
                 renderCandidates(nativeCandidates)
                 if (windowManager.attachedWindow is BaseExpandedCandidateWindow<*>) windowManager.attachWindow(keyboardWindow)
             }
             return false
         }
         completionCandidates = texts.map { CandidateWord("", it, "") }.toTypedArray()
-        renderCandidates(FcitxEvent.CandidateListEvent.Data(texts.size, completionCandidates!!))
+        renderCompletionCandidates()
         val candidates = horizontalCandidate.view
         candidates.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
@@ -170,6 +189,13 @@ class InputView(
             }
         })
         return true
+    }
+
+    private fun renderCompletionCandidates() {
+        val ai = completionCandidates ?: return
+        mergedCandidates = CompletionCandidates.merge(ai, nativeCandidates.candidates)
+        val words = mergedCandidates!!.map { it.word }.toTypedArray()
+        renderCandidates(FcitxEvent.CandidateListEvent.Data(words.size, words))
     }
     private val symbolPicker = symbolPicker()
     private val emojiPicker = emojiPicker()
@@ -421,7 +447,8 @@ class InputView(
             is FcitxEvent.CandidateListEvent -> {
                 nativeCandidates = it.data
                 if (hasCompletionCandidates) {
-                    if (it.data.candidates.isNotEmpty()) service.cancelCompletion()
+                    if (hasNativePreedit()) service.cancelCompletion()
+                    else renderCompletionCandidates()
                 } else renderCandidates(it.data)
             }
             is FcitxEvent.ClientPreeditEvent -> {
