@@ -33,6 +33,7 @@ import org.fcitx.fcitx5.android.ui.main.settings.behavior.SymbolSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.global.GlobalConfigFragment
 import org.fcitx.fcitx5.android.ui.main.settings.im.InputMethodConfigFragment
 import org.fcitx.fcitx5.android.ui.main.settings.im.InputMethodListFragment
+import org.fcitx.fcitx5.android.ui.main.settings.im.RankingSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.theme.ThemeFragment
 import org.fcitx.fcitx5.android.utils.config.ConfigDescriptor
 import org.fcitx.fcitx5.android.utils.parcelable
@@ -56,6 +57,9 @@ sealed class SettingsRoute : Parcelable {
 
     @Serializable
     data class InputMethodConfig(val name: String, val uniqueName: String) : SettingsRoute()
+
+    @Serializable
+    data object PinyinRanking : SettingsRoute()
 
     @Serializable
     data object AddonList : SettingsRoute()
@@ -197,6 +201,9 @@ sealed class SettingsRoute : Parcelable {
                 label = ctx.getString(R.string.input_methods)
             }
             fragment<InputMethodConfigFragment, InputMethodConfig>()
+            fragment<RankingSettingsFragment, PinyinRanking> {
+                label = ctx.getString(R.string.candidate_ranking)
+            }
             fragment<AddonListFragment, AddonList> {
                 label = ctx.getString(R.string.addons)
             }

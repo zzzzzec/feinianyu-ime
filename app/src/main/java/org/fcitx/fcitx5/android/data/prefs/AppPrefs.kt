@@ -139,9 +139,6 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val expandToolbarByDefault =
             switch(R.string.expand_toolbar_by_default, "expand_toolbar_by_default", true)
         val inlineSuggestions = switch(R.string.inline_suggestions, "inline_suggestions", true)
-        val suzuEnabled = switch(
-            R.string.suzu_enabled, "suzu_enabled", true, summary = R.string.suzu_enabled_summary
-        )
         val keyFontSize = int(R.string.keyboard_font_size, "keyboard_font_size", 20, 12, 32, "dp")
         val candidateFontSize = int(R.string.keyboard_candidate_font_size, "keyboard_candidate_font_size", 18, 12, 32, "sp")
         val toolbarNumRowOnPassword =
@@ -378,6 +375,13 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         )
     }
 
+    inner class Ranking : ManagedPreferenceCategory(R.string.candidate_ranking, sharedPreferences) {
+        // Keep the existing storage key so upgrades preserve the user's choice.
+        val suzuEnabled = switch(
+            R.string.suzu_enabled, "suzu_enabled", true, summary = R.string.suzu_enabled_summary
+        )
+    }
+
     private val providers = mutableListOf<ManagedPreferenceProvider>()
 
     fun <T : ManagedPreferenceProvider> registerProvider(
@@ -394,6 +398,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
 
     val internal = Internal().register()
     val keyboard = Keyboard().register()
+    val ranking = Ranking().register()
     val candidates = Candidates().register()
     val clipboard = Clipboard().register()
     val symbols = Symbols().register()
@@ -424,6 +429,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             }
             listOf(
                 keyboard,
+                ranking,
                 candidates,
                 clipboard
             ).forEach { category ->

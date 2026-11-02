@@ -11,6 +11,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.preference.isEmpty
+import androidx.preference.PreferenceScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -28,6 +29,8 @@ abstract class FcitxPreferenceFragment : PaddingPreferenceFragment() {
     abstract fun getPageTitle(): String
     abstract suspend fun obtainConfig(fcitx: FcitxAPI): RawConfig
     abstract suspend fun saveConfig(fcitx: FcitxAPI, newConfig: RawConfig)
+
+    protected open fun onConfigUiCreated(screen: PreferenceScreen) {}
 
     private lateinit var raw: RawConfig
     private var configLoaded = false
@@ -108,6 +111,7 @@ abstract class FcitxPreferenceFragment : PaddingPreferenceFragment() {
                     addPreference(R.string.config_addon_not_loaded)
                 }
             }
+            onConfigUiCreated(preferenceScreen)
         }
     }
 

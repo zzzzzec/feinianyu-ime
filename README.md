@@ -2,7 +2,7 @@
 
 基于 Fcitx5 Android 的中文输入法，使用 Suzu 重排拼音候选，并支持 Qwen 上屏后短语补全。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.4.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.5.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 
@@ -21,7 +21,7 @@
 
 ## 查看与导出排序日志
 
-打开应用首页 → **排序诊断** → 打开 **记录排序结果**，在页面内或其他应用中用拼音输入，再返回选择记录。
+打开 **输入法 → 拼音右侧齿轮 → 候选排序 → 排序诊断** → 打开 **记录排序结果**，在页面内或其他应用中用拼音输入，再返回选择记录。
 页面显示候选原序与最终顺序、每项模型分数和原序惩罚、首选保护、耗时、超时或跳过原因。
 **导出 JSON** 可保存全部最近记录，方便分享分析；底部 **实时日志** 保留原有运行日志与文本导出功能。
 
@@ -47,9 +47,10 @@
 
 “虚拟键盘”页面可调整：
 
-- **Suzu 候选排序**：默认开启。
 - **键盘字体大小**：12–32 dp，默认 20。
 - **键盘候选字体大小**：12–32 sp，默认 18。
+
+**Suzu 候选排序**默认开启，开关及排序诊断位于 **输入法 → 拼音右侧齿轮 → 候选排序**。
 
 “应用更新”页面可查看中文更新说明、手动检查和安装已下载的版本。
 自动下载默认使用 Wi-Fi，每 12 小时检查一次，实际后台执行时间由 Android 调度。

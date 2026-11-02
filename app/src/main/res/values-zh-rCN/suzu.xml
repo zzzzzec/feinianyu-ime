@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="candidate_ranking">候选排序</string>
     <string name="suzu_enabled">Suzu 候选排序</string>
     <string name="suzu_enabled_summary">Suzu-2.4 · 离线 · 结合输入上文</string>
     <string name="keyboard_font_size">键盘字体大小</string>

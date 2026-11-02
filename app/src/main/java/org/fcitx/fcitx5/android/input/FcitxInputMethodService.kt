@@ -250,7 +250,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         val job = fcitx.lifecycleScope.launch(start = CoroutineStart.LAZY) {
             val snapshot = withContext(Dispatchers.Main.immediate) {
                 val allowed = SuzuContextPolicy.allows(currentInputEditorInfo)
-                val enabled = prefs.keyboard.suzuEnabled.getValue() && allowed
+                val enabled = prefs.ranking.suzuEnabled.getValue() && allowed
                 val recording = org.fcitx.fcitx5.android.diagnostics.RankingDiagnosticsSettings.enabled(this@FcitxInputMethodService)
                 val dataset = if (datasetEditorActive) InputDataset.session(this@FcitxInputMethodService, currentInputEditorInfo) else null
                 SuzuSnapshot(enabled, allowed, recording, if (allowed && (enabled || recording || dataset != null)) readSuzuContext() else "", dataset)
