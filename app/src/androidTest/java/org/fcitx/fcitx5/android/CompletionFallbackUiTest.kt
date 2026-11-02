@@ -73,10 +73,10 @@ class CompletionFallbackUiTest {
                     (editor.top - 100 * app.resources.displayMetrics.density).toInt().coerceAtLeast(0))
             }
             fcitx.runOnReady { reset(); activateIme("pinyin") }
-            delay(250)
-            // Drive setup keys synchronously; Android's injected key events may
-            // still be queued when a prefix already offers the expected phrase.
-            fcitx.runOnReady { for (key in pinyin) sendKey(key) }
+            delay(750)
+            // Use real Android key down/up events and let the IME's key queue drain.
+            for (key in pinyin) { instrumentation.sendStringSync(key.toString()); delay(100) }
+            delay(400)
             var selected = -1
             waitUntil("Pinyin composition should offer $text") {
                 selected = runBlocking { fcitx.runOnReady { getCandidates(0, 16) } }.indexOfFirst { it.text == text }
