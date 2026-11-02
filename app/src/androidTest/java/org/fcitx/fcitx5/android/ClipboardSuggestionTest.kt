@@ -51,8 +51,12 @@ class ClipboardSuggestionTest {
         }
         fun chip() = allNodes().firstOrNull { it.viewIdResourceName == "${app.packageName}:id/clipboard_suggestion_chip" }
         suspend fun waitUntil(message: String, condition: () -> Boolean) {
-            withTimeout(10000) { while (!condition()) delay(40) }
-            assertTrue(message, condition())
+            println("CLIPBOARD_CHECK: $message")
+            val completed = withTimeoutOrNull(10000) { while (!condition()) delay(40); true } == true
+            if (!completed) File(app.filesDir, "clipboard-suggestion-failure.png").outputStream().use {
+                checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            assertTrue(message, completed)
         }
         fun screenshot(name: String) { File(app.filesDir, name).outputStream().use { checkNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it) } }
         clipPrefs.clipboardListening.setValue(true); clipPrefs.clipboardSuggestion.setValue(true)
@@ -114,8 +118,8 @@ class ClipboardSuggestionTest {
             assertTrue(chip()!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             waitUntil("Masking must not change the pasted payload") { editor.text.toString() == secret }
             shell("am start -n ${app.packageName}.test/org.fcitx.fcitx5.android.fixture.ImageClipboardActivity")
-            waitUntil("Image fixture should be visible") { allNodes().any { it.text?.toString() == "Copy test image" } }
-            assertTrue(allNodes().first { it.text?.toString() == "Copy test image" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            waitUntil("Image fixture should be visible") { allNodes().any { it.text?.toString().equals("Copy test image", ignoreCase = true) } }
+            assertTrue(allNodes().first { it.text?.toString().equals("Copy test image", ignoreCase = true) }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             waitUntil("A copied image should appear as a quick-paste suggestion") { chip() != null && ClipboardManager.lastEntry?.isImage == true }
             assertEquals(app.getString(R.string.clipboard_paste_image), chip()!!.contentDescription.toString())
             screenshot("clipboard-suggestion-image.png")
