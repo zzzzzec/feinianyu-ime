@@ -10,7 +10,9 @@
 - **Qwen3.5-0.8B-Base**：Qwen Team / Alibaba Cloud，https://huggingface.co/Qwen/Qwen3.5-0.8B-Base ，Apache-2.0。独立下载 mradermacher 转换的 Q4_K_M 权重，未微调；固定版本、SHA-256 与运行方式见 docs/qwen-completion.md，署名及许可证位于 assets/qwen/。
 - **诗词与领域词库**：chinese-poetry/chinese-poetry（MIT，Copyright 2016 JackeyGao）和 THUNLP/THUOCL（MIT，Copyright 2018 THUNLP）。使用了清华大学开放中文词库。固定源提交、筛选方式、派生拼音及原许可证见 app/src/main/assets/dictionaries/NOTICE.md 和 docs/dictionaries.md。
 
-本项目增加了 Fcitx 候选排序适配、可调字号、浅色外观、配置迁移与应用更新。
+- **语音输入**：sherpa-onnx 2.0.1（Apache-2.0）及 ONNX Runtime（MIT）；独立下载 SenseVoice Small int8（Alibaba Group，FunASR Model Open Source License Agreement v1.1）和 Silero VAD（MIT）。原始模型名、固定来源、SHA-256 及许可全文见 app/src/main/assets/speech/ 与 docs/speech-input.md。
+
+本项目增加了 Fcitx 候选排序适配、可调字号、浅色外观、配置迁移、应用更新和本地语音输入。
 组合 APK 按 GPL-3.0 分发；各组件及模型的独立许可证仍须遵守，不以本声明替代。
 对应源码位于公开仓库 https://github.com/zzzzzec/feinianyu-ime ，Release 与其源码提交关联。
 APK 内 assets/suzu/ 同时包含模型、推理组件的署名与许可文本。

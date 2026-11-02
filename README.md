@@ -2,7 +2,7 @@
 
 基于 Fcitx5 Android 的中文输入法，使用 Suzu 重排拼音候选，并支持 Qwen 上屏后短语补全。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.7.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.8.md) · [语音输入](docs/speech-input.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 
@@ -10,6 +10,7 @@
 - 内置约 44 MB 的 Suzu-2.4 Q8_0。模型在本机运行，只重排已有候选，不生成新候选。
 - Qwen3.5-0.8B-Base 根据已上屏前文提供 0–3 条短续写，按原始概率过滤并提前停止，默认保守策略；使用原有候选栏和展开面板。模型独立下载，覆盖升级后复用；性能及评分记录可导出。
 - Gboard 风格浅色主题；键盘字体和候选字体可分别调整。
+- 本地中文语音输入，顶栏右侧麦克风；SenseVoice Small 模型独立下载，支持分句输入和性能日志导出。
 - 从本仓库 Release 自动检查和下载更新，更新页面显示中文 changelog；安装由 Android 系统确认。
 - 固定包名 `dev.feinianyu.ime`，同一签名覆盖升级；配置按版本迁移，并在修改前保留快照。
 - “排序诊断”可查看候选原序、模型分数、最终顺序与跳过原因，并导出 JSON 日志。
@@ -79,6 +80,13 @@ Android 14 及以上若仅允许“选定照片”，无法读取之后的新截
 输入法进程被系统暂停时，下次打开键盘会检查遗漏的最近截图。截图文件写入完成后才会保存，并沿用图片去重和历史条数限制。
 可识别常见 Screenshots、截图、截屏目录；截图目录和保存方式仍需在具体手机上验证。
 
+### 本地语音输入
+
+设置 → **语音输入**，下载约 230 MiB 的 SenseVoice Small int8 模型并允许麦克风。
+点击键盘顶栏右侧的麦克风，按停顿分句识别并输入；长按麦克风进入设置。
+默认自动识别语言，支持指定普通话、粤语等；模型独立保存，覆盖升级后保留。
+同一设置页可导出语音性能记录。接口与实现见 [语音输入](docs/speech-input.md)。
+
 ## 构建
 
 工具链版本见 `toolchain-versions.json` 与上游 [构建说明](old.md)。
@@ -87,12 +95,13 @@ Android 14 及以上若仅允许“选定照片”，无法读取之后的新截
 git clone --recurse-submodules https://github.com/zzzzzec/feinianyu-ime.git
 cd feinianyu-ime
 ./scripts/fetch-suzu.ps1
+./scripts/fetch-speech-runtime.ps1
 ./gradlew.bat :app:assembleDebug -PbuildABI=arm64-v8a
 ```
 
 首次个人发行前运行 `scripts/init-signing.ps1`，并私下备份 `.private/` 的签名文件。
 发行签名不进入 Git；没有个人签名配置时，开发包使用 `.debug` 包名，避免与正式使用的数据目录混用。
-模型固定版本下载并校验 SHA-256，不提交大权重到 Git；APK 内已包含模型，无需安装后下载。
+依赖和模型固定版本下载并校验 SHA-256，不提交大权重到 Git。Suzu 随 APK 提供；Qwen 续写和语音模型首次使用时独立下载。
 
 ## 来源与许可
 

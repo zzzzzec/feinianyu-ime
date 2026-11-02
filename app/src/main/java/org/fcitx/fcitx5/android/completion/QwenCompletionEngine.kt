@@ -19,10 +19,11 @@ object QwenCompletionEngine {
     private var loadJob: Job? = null
     private var idleJob: Job? = null
     @Volatile private var active = false
+    @Volatile private var speechActive = false
     fun setActive(context: Context, value: Boolean) {
         active = value
         idleJob?.cancel()
-        if (value) { ensureLoaded(context); return }
+        if (value) { if (!speechActive) ensureLoaded(context); return }
         idleJob = scope.launch {
             delay(60000)
             withContext(worker) {
@@ -37,6 +38,7 @@ object QwenCompletionEngine {
     fun nextId() = ids.incrementAndGet()
     fun cancel(id: Long) { if (id > 0) QwenNative.cancel(id) }
     @Synchronized fun ensureLoaded(context: Context) {
+        if (speechActive) return
         val app = context.applicationContext
         if (mutableState.value == "ready" || loadJob?.isActive == true) return
         loadJob = scope.launch {
@@ -55,6 +57,25 @@ object QwenCompletionEngine {
                 CompletionPerf.record(app, JSONObject().put("phase", "load").put("state", "error").put("error_type", error.javaClass.simpleName))
             }
         }
+    }
+    /** Free the completion model before loading ASR; both native workers remain serialized. */
+    suspend fun pauseForSpeech(context: Context) {
+        speechActive = true
+        idleJob?.cancel()
+        loadJob?.join()
+        withContext(worker) {
+            if (mutableState.value == "ready") {
+                mutableState.value = "unloading"
+                QwenNative.unload()
+                mutableState.value = "unloaded"
+                // A user may have returned to the keyboard while native unload was running.
+                if (!speechActive && active) ensureLoaded(context)
+            }
+        }
+    }
+    fun resumeAfterSpeech(context: Context) {
+        speechActive = false
+        if (active) ensureLoaded(context)
     }
     suspend fun generate(context: Context, prompt: String, id: Long, budgetMs: Int,
         policy: CompletionPolicy = CompletionSettings.policy(context)): JSONObject {

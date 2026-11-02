@@ -60,6 +60,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Fetch pinned app dependencies
+        shell: pwsh
+        run: |
+          ./scripts/fetch-suzu.ps1
+          ./scripts/fetch-speech-runtime.ps1
+
       - name: Build Release APK
         run: |
           ./gradlew :app:assembleRelease

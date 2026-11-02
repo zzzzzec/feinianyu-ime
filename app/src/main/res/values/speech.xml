@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="speech_title">语音输入</string>
+    <string name="speech_show_microphone">显示语音输入按钮</string>
+    <string name="speech_provider">识别服务</string>
+    <string name="speech_language">识别语言</string>
+    <string name="speech_model">本地模型</string>
+    <string name="speech_download">下载中文语音模型</string>
+    <string name="speech_wifi_only">仅通过 Wi-Fi 下载模型</string>
+    <string name="speech_model_ready">模型已就绪</string>
+    <string name="speech_model_downloading">正在下载 %1$d / %2$d MiB</string>
+    <string name="speech_model_verifying">正在校验模型</string>
+    <string name="speech_model_missing">尚未下载模型</string>
+    <string name="speech_microphone">麦克风</string>
+    <string name="speech_allow_microphone">允许使用麦克风</string>
+    <string name="speech_microphone_allowed">麦克风已允许</string>
+    <string name="speech_microphone_settings">麦克风权限设置</string>
+    <string name="speech_try">试一试</string>
+    <string name="speech_try_hint">在这里试试语音输入</string>
+    <string name="speech_perf">性能记录</string>
+    <string name="speech_export_perf">导出语音性能记录</string>
+    <string name="speech_model_license">模型来源与许可证</string>
+    <string name="speech_settings">语音输入设置</string>
+    <string name="speech_start">开始语音输入</string>
+    <string name="speech_stop">停止语音输入</string>
+    <string name="speech_loading">正在加载语音模型…</string>
+    <string name="speech_listening">请开始说话</string>
+    <string name="speech_recognizing">正在识别…</string>
+    <string name="speech_failed">识别失败</string>
+    <string name="speech_no_voice">未听清，点按麦克风重试</string>
+    <string name="speech_continue">点按麦克风继续</string>
+    <string name="speech_finish_pinyin">请先完成当前拼音输入</string>
+    <string name="speech_emulator_abi">当前模拟器请安装 x86_64 版本</string>
+    <item name="speech_provider_selector" type="id"/>
+    <item name="speech_language_selector" type="id"/>
+    <item name="speech_model_status" type="id"/>
+    <item name="speech_download_button" type="id"/>
+    <item name="speech_permission_button" type="id"/>
+    <item name="speech_test_input" type="id"/>
+    <item name="speech_panel" type="id"/>
+    <item name="speech_listening_status" type="id"/>
+    <item name="speech_transcript" type="id"/>
+    <item name="speech_record_button" type="id"/>
+    <item name="speech_settings_button" type="id"/>
+    <item name="voice_input_button" type="id"/>
+</resources>

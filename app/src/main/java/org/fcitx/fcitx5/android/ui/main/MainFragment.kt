@@ -85,6 +85,9 @@ class MainFragment : PaddingPreferenceFragment() {
                 )
             }
             addCategory("Android") {
+                addPreference(R.string.speech_title, icon = R.drawable.ic_baseline_keyboard_voice_24) {
+                    startActivity(Intent(requireContext(), org.fcitx.fcitx5.android.speech.SpeechActivity::class.java))
+                }
                 addPreference(R.string.dataset_title, icon = R.drawable.ic_baseline_list_alt_24) {
                     startActivity(Intent(requireContext(), org.fcitx.fcitx5.android.dataset.InputDatasetActivity::class.java))
                 }

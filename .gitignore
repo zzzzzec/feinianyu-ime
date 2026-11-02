@@ -25,6 +25,7 @@
 # Built application files
 *.apk
 *.aar
+/app/libs/*.download
 *.ap_
 *.aab
 

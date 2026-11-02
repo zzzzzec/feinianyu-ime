@@ -103,6 +103,21 @@ val verifyBundledSuzu = tasks.register("verifyBundledSuzu") {
 }
 tasks.named("preBuild") { dependsOn(verifyBundledSuzu) }
 
+val verifySpeechRuntime = tasks.register("verifySpeechRuntime") {
+    val runtime = layout.projectDirectory.file("libs/sherpa-onnx-static-link-onnxruntime-2.0.1.aar")
+    inputs.file(runtime)
+    doLast {
+        check(runtime.asFile.isFile) { "Run scripts/fetch-speech-runtime.ps1 before building." }
+        val digest = MessageDigest.getInstance("SHA-256")
+        runtime.asFile.inputStream().buffered().use { input ->
+            val buffer = ByteArray(256 * 1024)
+            while (true) { val count = input.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
+        }
+        check(digest.digest().joinToString("") { "%02x".format(it) } == "07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575") { "Speech runtime checksum mismatch" }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifySpeechRuntime) }
+
 generateDataDescriptor {
     // SuzuAssets extracts these once to noBackupFilesDir. They are not Fcitx data.
     excludes.addAll("suzu/suzu-2.4.q8_0.gguf", "suzu/suzu-2.4.q8_0.gguf.vocab.txt")
@@ -128,6 +143,7 @@ ksp {
 }
 
 dependencies {
+    implementation(files("libs/sherpa-onnx-static-link-onnxruntime-2.0.1.aar"))
     ksp(project(":codegen"))
     implementation(project(":lib:fcitx5"))
     implementation(project(":lib:fcitx5-lua"))

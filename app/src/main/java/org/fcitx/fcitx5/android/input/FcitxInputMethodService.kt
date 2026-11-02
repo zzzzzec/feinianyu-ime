@@ -62,6 +62,7 @@ import org.fcitx.fcitx5.android.core.ScancodeMapping
 import org.fcitx.fcitx5.android.core.SubtypeManager
 import org.fcitx.fcitx5.android.core.SuzuAssets
 import org.fcitx.fcitx5.android.completion.*
+import org.fcitx.fcitx5.android.speech.*
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.InputFeedbacks
@@ -111,6 +112,41 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private var candidatesView: CandidatesView? = null
 
     private var completionEditor = 0L
+    private val speechGuard = SpeechEditorGuard()
+    private val speech by lazy {
+        SpeechController(this, lifecycleScope, onText = { text ->
+            if (!isInputViewShown || !speechGuard.accepts(completionEditor, selection.latest.start, selection.latest.end)) false
+            else {
+                // The engine's old post-commit predictions refer to the text before this dictation.
+                postFcitxJob { reset() }
+                commitText(text, source = "speech").also { applied ->
+                    if (applied) speechGuard.committed(selection.latest.start, selection.latest.end)
+                }
+            }
+        }, sourceFactory = { SpeechAudioSources.create() }, beforePrepare = { QwenCompletionEngine.pauseForSpeech(this) })
+    }
+    val speechState get() = speech.state
+    fun openSpeechInput() {
+        if (!SpeechSettings.enabled(this) || capabilityFlags.has(org.fcitx.fcitx5.android.core.CapabilityFlag.Password)) return
+        if (!SpeechSettings.hasPermission(this) || !SpeechProviders.ready(this)) { SpeechSettings.open(this); return }
+        if (composing.isNotEmpty() || composingText.isNotEmpty() || fcitx.runImmediately {
+                clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty() }) {
+            toast(R.string.speech_finish_pinyin); return
+        }
+        inputView?.showSpeechWindow()
+    }
+    fun beginSpeechSession() {
+        if (!isInputViewShown || speech.active || !SpeechSettings.hasPermission(this) || !SpeechProviders.ready(this)) return
+        speechGuard.begin(completionEditor, selection.latest.start, selection.latest.end)
+        completion.invalidate()
+        speech.start()
+    }
+    fun finishSpeechInput() = speech.finish()
+    fun cancelSpeechInput() {
+        speechGuard.invalidate()
+        speech.cancel()
+        QwenCompletionEngine.resumeAfterSpeech(this)
+    }
     private val completion by lazy {
         CompletionController(this, lifecycleScope, ::completionSnapshot,
             { text, shown -> inputView?.showCompletion(text, shown) ?: false }, ::commitCompletion)
@@ -121,6 +157,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             return null
         }
         if (!isInputViewShown) return blocked("ime_hidden")
+        if (speech.active) return blocked("speech_active")
         if (inputView?.hasClipboardSuggestion == true) return blocked("clipboard_suggestion")
         if (inputView?.completionAvailable != true) return blocked("keyboard_hidden")
         if (!SuzuContextPolicy.allows(currentInputEditorInfo)) return blocked("editor_policy")
@@ -210,6 +247,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     )
 
     private fun replaceInputView(theme: Theme): InputView {
+        cancelSpeechInput()
         val newInputView = InputView(this, fcitx, theme)
         setInputView(newInputView)
         inputDeviceMgr.setInputView(newInputView)
@@ -712,6 +750,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         InputFeedbacks.syncSystemPrefs()
     }
 
+    override fun onWindowHidden() {
+        cancelSpeechInput()
+        super.onWindowHidden()
+    }
+
     override fun onCreateInputView(): View? {
         replaceInputViews(ThemeManager.activeTheme)
         // We will call `setInputView` by ourselves. This is fine.
@@ -871,6 +914,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+        cancelSpeechInput()
         datasetEditorActive = true
         InputDataset.editorChanged(this, attribute)
         completionEditor++
@@ -940,6 +984,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         candidatesStart: Int,
         candidatesEnd: Int
     ) {
+        if (speech.active && !speechGuard.accepts(completionEditor, newSelStart, newSelEnd)) cancelSpeechInput()
         // onUpdateSelection can left behind when user types quickly enough, eg. long press backspace
         cursorUpdateIndex += 1
         Timber.d("onUpdateSelection: old=[$oldSelStart,$oldSelEnd] new=[$newSelStart,$newSelEnd] cand=[$candidatesStart,$candidatesEnd]")
@@ -1211,6 +1256,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         QwenCompletionEngine.setActive(this, false)
+        cancelSpeechInput()
         completionEditor++
         completion.invalidate(clearContext = true)
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
@@ -1229,6 +1275,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onFinishInput() {
+        cancelSpeechInput()
         datasetEditorActive = false
         InputDataset.endEditor()
         completionEditor++
@@ -1242,6 +1289,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onUnbindInput() {
+        cancelSpeechInput()
         datasetEditorActive = false
         InputDataset.endEditor()
         cachedKeyEvents.evictAll()
@@ -1259,6 +1307,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         InputDataset.endEditor()
         CompletionSettings.unregister(this, completionPreferenceListener)
         QwenCompletionEngine.setActive(this, false)
+        cancelSpeechInput()
         completion.invalidate(clearContext = true)
         recreateInputViewPrefs.forEach {
             it.unregisterOnChangeListener(recreateInputViewListener)

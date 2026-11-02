@@ -122,6 +122,7 @@ class InputView(
     val hasCompletionCandidates get() = completionCandidates != null
     val hasClipboardSuggestion get() = kawaiiBar.hasClipboardSuggestion
     fun dismissClipboardSuggestion() = kawaiiBar.dismissClipboardSuggestion()
+    fun showSpeechWindow() = windowManager.attachWindow(org.fcitx.fcitx5.android.speech.SpeechWindow())
     fun completionCandidatesSnapshot(): Array<CandidateWord>? = mergedCandidates?.map { it.word }?.toTypedArray()
     private fun hasNativePreedit() = fcitx.runImmediately {
         clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty()
@@ -297,6 +298,7 @@ class InputView(
         // MUST call before any operation
         setupScope()
         windowManager.onWindowChanged = { target ->
+            if (target !is org.fcitx.fcitx5.android.speech.SpeechWindow) service.cancelSpeechInput()
             if (target !== keyboardWindow && target !is BaseExpandedCandidateWindow<*>) service.cancelCompletion()
         }
 

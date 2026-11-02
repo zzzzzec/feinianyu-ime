@@ -69,6 +69,7 @@ import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.AppUtil
 import org.fcitx.fcitx5.android.utils.InputMethodUtil
+import org.fcitx.fcitx5.android.speech.SpeechSettings
 import org.mechdancer.dependency.DynamicScope
 import org.mechdancer.dependency.manager.must
 import splitties.bitflags.hasFlag
@@ -104,8 +105,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private val expandedCandidateStyle by prefs.keyboard.expandedCandidateStyle
     private val expandToolbarByDefault by prefs.keyboard.expandToolbarByDefault
     private val toolbarNumRowOnPassword by prefs.keyboard.toolbarNumRowOnPassword
-    private val showVoiceInputButton by prefs.keyboard.showVoiceInputButton
-    private val preferredVoiceInput by prefs.keyboard.preferredVoiceInput
+    private var voiceEditorAllowed = false
+    private var extendedWindow = false
 
     private var clipboardTimeoutJob: Job? = null
 
@@ -264,13 +265,6 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         } else false
     }
 
-    private var voiceInputSubtype: Pair<String, InputMethodSubtype>? = null
-
-    private val switchToVoiceInputCallback = View.OnClickListener {
-        val (id, subtype) = voiceInputSubtype ?: return@OnClickListener
-        InputMethodUtil.switchInputMethod(service, id, subtype)
-    }
-
     private val idleUi: IdleUi by lazy {
         IdleUi(context, theme, popup, commonKeyActionListener).apply {
             menuButton.setOnClickListener {
@@ -405,17 +399,17 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
 
     private fun switchUiByState(state: KawaiiBarStateMachine.State) {
         val index = state.ordinal
-        if (view.displayedChild == index) return
-        val new = view.getChildAt(index)
+        if (uiAnimator.displayedChild == index) return
+        val new = uiAnimator.getChildAt(index)
         if (new != titleUi.root) {
             titleUi.setReturnButtonOnClickListener { }
             titleUi.setTitle("")
             titleUi.removeExtension()
         }
-        view.displayedChild = index
+        uiAnimator.displayedChild = index
     }
 
-    override val view by lazy {
+    private val uiAnimator by lazy {
         ViewAnimator(context).apply {
             backgroundColor =
                 if (ThemeManager.prefs.keyBorder.getValue()) Color.TRANSPARENT
@@ -424,6 +418,35 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             add(candidateUi.root, lParams(matchParent, matchParent))
             add(titleUi.root, lParams(matchParent, matchParent))
         }
+    }
+
+    private val voiceButton by lazy {
+        ToolButton(context, R.drawable.ic_baseline_keyboard_voice_24, theme).apply {
+            id = R.id.voice_input_button
+            contentDescription = context.getString(R.string.speech_start)
+            setOnClickListener { service.openSpeechInput() }
+            setOnLongClickListener { SpeechSettings.open(context); true }
+            visibility = View.GONE
+        }
+    }
+
+    override val view by lazy {
+        FrameLayout(context).apply {
+            addView(uiAnimator, FrameLayout.LayoutParams(-1, -1))
+            addView(voiceButton, FrameLayout.LayoutParams(context.dp(HEIGHT), context.dp(HEIGHT), android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL))
+        }
+    }
+
+    private fun updateVoiceButton() {
+        val show = voiceEditorAllowed && !extendedWindow && SpeechSettings.enabled(context)
+        voiceButton.visibility = if (show) View.VISIBLE else View.GONE
+        voiceButton.isEnabled = preeditIsEmpty
+        voiceButton.alpha = if (preeditIsEmpty) 1f else 0.4f
+        (uiAnimator.layoutParams as? FrameLayout.LayoutParams)?.let {
+            it.marginEnd = if (show) context.dp(HEIGHT) else 0
+            uiAnimator.layoutParams = it
+        }
+        idleUi.hideKeyboardButton.visibility = if (show) View.GONE else View.VISIBLE
     }
 
     override fun onScopeSetupFinished(scope: DynamicScope) {
@@ -447,19 +470,16 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             idleUi.inlineSuggestionsBar.clear()
         }
-        voiceInputSubtype = InputMethodUtil.findVoiceSubtype(preferredVoiceInput)
-        val shouldShowVoiceInput =
-            showVoiceInputButton && voiceInputSubtype != null && !capFlags.has(CapabilityFlag.Password)
-        idleUi.setHideKeyboardIsVoiceInput(
-            shouldShowVoiceInput,
-            if (shouldShowVoiceInput) switchToVoiceInputCallback else hideKeyboardCallback
-        )
+        voiceEditorAllowed = !capFlags.has(CapabilityFlag.Password) &&
+            info.inputType and android.text.InputType.TYPE_MASK_CLASS == android.text.InputType.TYPE_CLASS_TEXT
+        updateVoiceButton()
         ClipboardManager.refreshForInput()
         updateClipboardSuggestion(ClipboardManager.lastEntry)
     }
 
     override fun onPreeditEmptyStateUpdate(empty: Boolean) {
         preeditIsEmpty = empty
+        updateVoiceButton()
         if (!empty) dismissClipboardSuggestion()
         barStateMachine.push(PreeditUpdated, PreeditEmpty to empty)
         refreshCandidateState()
@@ -476,6 +496,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     override fun onWindowAttached(window: InputWindow) {
+        extendedWindow = window is InputWindow.ExtendedInputWindow<*>
+        updateVoiceButton()
         when (window) {
             is InputWindow.ExtendedInputWindow<*> -> {
                 titleUi.setTitle(window.title)
@@ -490,6 +512,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     override fun onWindowDetached(window: InputWindow) {
+        extendedWindow = false
+        updateVoiceButton()
         barStateMachine.push(WindowDetached)
     }
 
