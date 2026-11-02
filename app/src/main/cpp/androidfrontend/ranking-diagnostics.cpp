@@ -43,6 +43,8 @@ void number(std::ostream &out, const std::optional<double> &value) {
 }
 }
 
+std::string recordingQuote(const std::string &text) { return jsonString(text); }
+
 void RankingDiagnostics::add(RankingTrace trace) {
     if (!enabled_) return;
     trace.id = ++sequence_;

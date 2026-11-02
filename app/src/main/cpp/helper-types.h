@@ -155,6 +155,6 @@ private:
             hasPrev(false), hasNext(false) {}
 };
 
-PagedCandidateEntity PagedCandidateEntity::Empty = PagedCandidateEntity();
+inline PagedCandidateEntity PagedCandidateEntity::Empty = PagedCandidateEntity();
 
 #endif //FCITX5_ANDROID_HELPER_TYPES_H

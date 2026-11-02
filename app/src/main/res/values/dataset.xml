@@ -1,0 +1,18 @@
+<resources>
+    <string name="dataset_title">Telemetry</string>
+    <string name="dataset_record">Record input and candidates</string>
+    <string name="dataset_scope">Record raw pinyin, candidate order, choices and committed text. Passwords and fields that prohibit personalized learning are excluded.</string>
+    <string name="dataset_excluded">Excluded apps</string>
+    <string name="dataset_export">Export dataset ZIP</string>
+    <string name="dataset_clear">Clear collected data</string>
+    <string name="dataset_clear_message">Delete collected records and pending batches on this device. Cloud data and exported files are kept.</string>
+    <string name="dataset_exporting">Exporting…</string>
+    <string name="dataset_exported">Dataset exported</string>
+    <string name="dataset_status">%1$d events · %2$.1f MB / 256 MB\n%3$s</string>
+    <string name="dataset_running">Recording</string>
+    <string name="dataset_paused">Paused</string>
+    <string name="dataset_limit">Storage limit reached. Export and clear data to continue.</string>
+    <string name="dataset_write_error">Write failed. Recording paused; check available storage.</string>
+    <string name="dataset_queue_full">Write queue full. Recording paused.</string>
+    <string name="dataset_no_apps">Enable recording and type to populate this list.</string>
+</resources>

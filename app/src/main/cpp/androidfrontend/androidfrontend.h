@@ -8,17 +8,20 @@
 
 #include <fcitx/instance.h>
 #include <fcitx/addoninstance.h>
+#include <fcitx/focusgroup.h>
 #include <fcitx-utils/i18n.h>
 
 #include "androidfrontend_public.h"
 #include "inputcontextcache.h"
 #include "../suzu/suzu-reranker.h"
 #include "ranking-diagnostics.h"
+#include <unordered_map>
 
 namespace fcitx {
 
 class AndroidInputContext;
 class CandidateList;
+class CandidateWord;
 
 class AndroidFrontend : public AddonInstance {
 public:
@@ -51,6 +54,8 @@ public:
     std::string suzuDiagnostics();
     void clearSuzuDiagnostics();
     void rerankCandidates();
+    void setInputRecording(const std::string &session, bool enabled, const std::string &context);
+    void setInputRecordingCallback(const InputRecordingCallback &callback) { recordingCallback_ = callback; }
     std::vector<CandidateEntity> getCandidates(int offset, int limit);
     std::vector<CandidateActionEntity> getCandidateActions(int idx);
     void triggerCandidateAction(int idx, int actionIdx);
@@ -89,6 +94,8 @@ private:
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setSuzuDiagnostics);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, suzuDiagnostics);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, clearSuzuDiagnostics);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setInputRecording);
+    FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, setInputRecordingCallback);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, getCandidates);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, getCandidateActions);
     FCITX_ADDON_EXPORT_FUNCTION(AndroidFrontend, triggerCandidateAction);
@@ -123,6 +130,21 @@ private:
     std::weak_ptr<CandidateList> diagnosedList_;
     std::weak_ptr<CandidateList> rankedList_;
     unsigned suzuReorders_ = 0;
+
+    bool recordingAllowed() const;
+    std::string recordingInput();
+    void emitRecording(const std::string &type, const std::string &fields);
+    bool beginRecordingCandidates(const std::shared_ptr<CandidateList> &list);
+    void recordCandidates(const std::string &reason, const RankingTrace &trace);
+    void recordAction(const std::string &kind, int sym = 0, bool up = false, int index = -1, uint32_t states = 0);
+    void recordActionResult(bool handled);
+    void recordPage(const std::vector<CandidateEntity> &words, int offset, int total, const std::string &kind);
+    bool recordingEnabled_ = false, recordingComposing_ = false, recordingOriginalKnown_ = false;
+    std::string recordingSession_, recordingContext_, recordingAction_ = "null", recordingDecisionInput_ = "null";
+    uint64_t recordingSequence_ = 0, recordingDecision_ = 0, recordingComposition_ = 0;
+    std::weak_ptr<CandidateList> recordingList_;
+    std::unordered_map<const CandidateWord *, int> recordingOriginal_;
+    InputRecordingCallback recordingCallback_ = [](const std::string &) {};
 
     CandidateListCallback candidateListCallback = [](const std::vector<CandidateEntity> &, const int) {};
     CommitStringCallback commitStringCallback = [](const std::string &, const int) {};

@@ -45,6 +45,7 @@ object CompletionPerf {
                 output.writeText(retained.joinToString("\n", postfix = "\n"))
             }
             output.appendText(entry.toString() + "\n")
+            org.fcitx.fcitx5.android.dataset.InputDataset.performance(context, entry)
         } } } // Timing telemetry must never crash the keyboard (e.g. full storage).
     }
     suspend fun export(context: Context): String = withContext(io) { mutex.withLock {

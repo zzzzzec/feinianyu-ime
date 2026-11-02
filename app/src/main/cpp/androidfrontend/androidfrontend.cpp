@@ -393,11 +393,14 @@ void AndroidFrontend::rerankCandidates() {
     if (!activeIC_) return;
     auto &panel = activeIC_->inputPanel();
     auto list = panel.candidateList();
-    if (!list || list->empty() || rankedList_.lock() == list) return;
-    const bool capture = diagnostics_.enabled() && diagnosedList_.lock() != list;
+    if (!list || list->empty()) return;
+    const bool collecting = beginRecordingCandidates(list);
+    if (rankedList_.lock() == list) { if (collecting) recordCandidates("already_ranked", RankingTrace{}); return; }
+    const bool capture = collecting || (diagnostics_.enabled() && diagnosedList_.lock() != list);
     if (capture) diagnosedList_ = list;
     RankingTrace trace;
     auto finish = [&](const std::string &reason) {
+        if (collecting) recordCandidates(reason, trace);
         if (capture) { trace.reason = reason; diagnostics_.add(std::move(trace)); }
     };
     const auto flags = activeIC_->capabilityFlags();
@@ -424,7 +427,7 @@ void AndroidFrontend::rerankCandidates() {
         trace.context = offsets.size() > 30 ? suzuContext_.substr(offsets[offsets.size() - 30]) : suzuContext_;
         const auto *bulk = list->toBulk();
         int total = bulk ? bulk->totalSize() : list->size();
-        int limit = total < 0 ? 10 : std::min(10, total);
+        int limit = total < 0 ? (collecting ? 16 : 10) : std::min(collecting ? 16 : 10, total);
         for (int i = 0; i < limit; ++i) {
             try {
                 const auto &candidate = bulk ? bulk->candidateFromAll(i) : list->candidate(i);
@@ -504,7 +507,7 @@ void AndroidFrontend::rerankCandidates() {
     desired = current;
     for (size_t i = 0; i < positions.size(); ++i) desired[positions[i]] = current[positions[order[i]]];
     if (capture) for (size_t i = 0; i < trace.candidates.size(); ++i) {
-        trace.candidates[i].finalRank = static_cast<int>(std::find(desired.begin(), desired.end(), current[i]) - desired.begin()) + 1;
+        if (i < current.size()) trace.candidates[i].finalRank = static_cast<int>(std::find(desired.begin(), desired.end(), current[i]) - desired.begin()) + 1;
     }
     bool changed = false;
     for (int i = 0; i < count; ++i) {
@@ -522,12 +525,14 @@ void AndroidFrontend::rerankCandidates() {
 
 void AndroidFrontend::keyEvent(const Key &key, bool isRelease, const int timestamp) {
     if (!activeIC_) return;
+    recordAction("key", static_cast<int>(key.sym()), isRelease, -1, key.states());
     KeyEvent keyEvent(activeIC_, key, isRelease);
     activeIC_->keyEvent(keyEvent);
     if (!keyEvent.accepted()) {
         auto sym = key.sym();
         keyEventCallback(sym, key.states(), Key::keySymToUnicode(sym), isRelease, timestamp);
     }
+    recordActionResult(keyEvent.accepted());
 }
 
 void AndroidFrontend::forwardKey(const Key &key, bool isRelease) {
@@ -536,10 +541,12 @@ void AndroidFrontend::forwardKey(const Key &key, bool isRelease) {
 }
 
 void AndroidFrontend::commitString(const std::string &str, const int cursor) {
+    emitRecording("engine_commit", ",\"text\":" + recordingQuote(str) + ",\"cursor\":" + std::to_string(cursor) + ",\"action\":" + recordingAction_);
     commitStringCallback(str, cursor);
 }
 
 void AndroidFrontend::updateCandidateList(const std::vector<CandidateEntity> &candidates, const int size) {
+    recordPage(candidates, 0, size, "bulk");
     candidateListCallback(candidates, size);
 }
 
@@ -557,11 +564,10 @@ void AndroidFrontend::releaseInputContext(const int uid) {
 
 bool AndroidFrontend::selectCandidate(int idx) {
     if (!activeIC_) return false;
-    if (pagingMode_) {
-        return activeIC_->selectCandidatePaged(idx);
-    } else {
-        return activeIC_->selectCandidateBulk(idx);
-    }
+    recordAction("candidate_click", 0, false, idx);
+    const bool selected = pagingMode_ ? activeIC_->selectCandidatePaged(idx) : activeIC_->selectCandidateBulk(idx);
+    recordActionResult(selected);
+    return selected;
 }
 
 std::vector<CandidateActionEntity> AndroidFrontend::getCandidateActions(const int idx) {
@@ -640,7 +646,9 @@ void AndroidFrontend::setCandidateListCallback(const CandidateListCallback &call
 
 std::vector<CandidateEntity> AndroidFrontend::getCandidates(const int offset, const int limit) {
     if (!activeIC_) return {};
-    return activeIC_->getCandidates(offset, limit);
+    auto words = activeIC_->getCandidates(offset, limit);
+    recordPage(words, offset, -1, "requested_page");
+    return words;
 }
 
 void AndroidFrontend::deleteSurrounding(const int before, const int after) {
@@ -661,6 +669,7 @@ void AndroidFrontend::setCandidatePagingMode(const int mode) {
 }
 
 void AndroidFrontend::updatePagedCandidate(const PagedCandidateEntity &paged) {
+    recordPage(paged.candidates, -1, -1, "paged");
     pagedCandidateCallback(paged);
 }
 

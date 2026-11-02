@@ -1,0 +1,14 @@
+name = "feinianyu-ime-telemetry-ingest"
+main = "src/worker.mjs"
+compatibility_date = "2025-09-01"
+workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = false
+
+[[r2_buckets]]
+binding = "TELEMETRY"
+bucket_name = "feinianyu-ime-telemetry"
+
+# DEVICE_UPLOAD_KEYS is a Worker secret, never a plaintext variable here.

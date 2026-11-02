@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+std::string recordingQuote(const std::string &text);
+
 struct RankingCandidateTrace {
     std::string text, excluded;
     int originalRank = 0, finalRank = 0;

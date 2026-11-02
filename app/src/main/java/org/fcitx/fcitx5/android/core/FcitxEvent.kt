@@ -262,6 +262,7 @@ sealed class FcitxEvent<T>(open val data: T) {
         DeleteSurrounding,
         PagedCandidate,
         SwitchInputMethod,
+        Dataset,
         Unknown
     }
 

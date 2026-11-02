@@ -86,6 +86,7 @@ class TextEditingWindow : InputWindow.ExtendedInputWindow<TextEditingWindow>(),
             }
             pasteButton.setOnClickListener {
                 userSelection = false
+                org.fcitx.fcitx5.android.dataset.InputDataset.event("paste_action")
                 service.currentInputConnection?.performContextMenuAction(android.R.id.paste)
             }
             backspaceButton.onClickWithRepeating {

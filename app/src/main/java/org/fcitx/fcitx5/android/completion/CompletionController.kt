@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.SystemClock
 import kotlinx.coroutines.*
 import org.json.JSONObject
+import org.fcitx.fcitx5.android.dataset.InputDataset
 
 data class CompletionSnapshot(val before: String, val cursor: Int, val editor: Long)
 
@@ -19,7 +20,7 @@ class CompletionController(
     private var job: Job? = null
     private var epoch = 0L
     private var activeId = 0L
-    private data class Offer(val snapshot: CompletionSnapshot, val texts: List<String>, val policy: String, val source: String)
+    private data class Offer(val snapshot: CompletionSnapshot, val texts: List<String>, val policy: String, val source: String, val recording: String?)
     private var offered: Offer? = null
     fun invalidate(clearContext: Boolean = false) {
         epoch++
@@ -37,6 +38,8 @@ class CompletionController(
             delay(CompletionSettings.DEBOUNCE_MS)
             val input = snapshot() ?: return@launch
             val id = QwenCompletionEngine.nextId(); activeId = id
+            val recording = InputDataset.currentSession()
+            InputDataset.record(recording, JSONObject().put("type", "completion_request").put("request_id", id).put("context", input.before))
             val totalBudget = CompletionSettings.budgetMs(context)
             val dictionary = if (CompletionSettings.dictionaryEnabled(context)) FixedCompletionEngine.lookup(context, input.before, id) else null
             if (!CompletionSettings.enabled(context) || epoch != expectedEpoch || snapshot() != input) return@launch
@@ -47,6 +50,7 @@ class CompletionController(
                 if (QwenCompletionEngine.state.value != "ready") return@launch
                 QwenCompletionEngine.generate(context, input.before, id, remaining).put("source", "qwen")
             }
+            InputDataset.record(recording, JSONObject().put("type", "completion_result").put("request_id", id).put("result", result))
             if (!CompletionSettings.enabled(context) || epoch != expectedEpoch || snapshot() != input) return@launch
             val raw = result.optJSONArray("candidates")
             val policy = result.optString("confidence_policy")
@@ -60,11 +64,13 @@ class CompletionController(
                     .put("confidence_policy", policy).put("source", source))
                 return@launch
             }
-            offered = Offer(input, texts, policy, source)
+            offered = Offer(input, texts, policy, source, recording)
             val accepted = display(texts) {
                 val now = SystemClock.elapsedRealtime() - start
                 val valid = CompletionSettings.enabled(context) && epoch == expectedEpoch && snapshot() == input && now < totalBudget
                 if (!valid) offered = null
+                InputDataset.record(recording, JSONObject().put("type", "completion_display").put("request_id", id)
+                    .put("shown", valid).put("source", source).put("candidates", org.json.JSONArray(texts)))
                 CompletionPerf.record(context, JSONObject().put("request_id", id).put("phase", "ui")
                     .put("state", if (valid) "shown" else "late_or_stale")
                     .put("end_to_end_ms", now).put("debounce_ms", CompletionSettings.DEBOUNCE_MS)
@@ -76,12 +82,14 @@ class CompletionController(
         }
     }
     fun accept(index: Int): Boolean {
-        val (input, texts, policy, source) = offered ?: return false
+        val (input, texts, policy, source, recording) = offered ?: return false
         val text = texts.getOrNull(index) ?: return false
         if (!CompletionSettings.enabled(context) || snapshot() != input) { invalidate(); return false }
         val id = activeId
         invalidate()
         commit(text)
+        InputDataset.record(recording, JSONObject().put("type", "completion_accept").put("request_id", id)
+            .put("selected_index", index).put("text", text).put("source", source))
         CompletionPerf.record(context, JSONObject().put("request_id", id).put("phase", "accept").put("state", "accepted")
             .put("selected_index", index).put("candidate_count", texts.size).put("confidence_policy", policy).put("source", source))
         return true

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
+    <exclude domain="sharedpref" path="telemetry.xml" />
+    <exclude domain="sharedpref" path="input_dataset.xml" />
     <exclude
         domain="file"
         path="usr" />

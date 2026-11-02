@@ -46,6 +46,7 @@ interface FcitxAPI {
 
     suspend fun configureSuzu(modelPath: String, vocabPath: String)
     suspend fun setSuzuContext(context: String, enabled: Boolean, allowDiagnosticText: Boolean = true)
+    suspend fun setInputRecording(session: String, enabled: Boolean, context: String)
     suspend fun setSuzuDiagnostics(enabled: Boolean)
     suspend fun clearSuzuDiagnostics()
     suspend fun suzuDiagnostics(): String

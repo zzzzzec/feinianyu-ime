@@ -144,6 +144,7 @@ public:
         p_frontend->call<fcitx::IAndroidFrontend::setSuzuContext>(context, enabled, allowText);
     }
     void setSuzuDiagnostics(bool enabled) { p_frontend->call<fcitx::IAndroidFrontend::setSuzuDiagnostics>(enabled); }
+    void setInputRecording(const std::string &session, bool enabled, const std::string &context) { p_frontend->call<fcitx::IAndroidFrontend::setInputRecording>(session, enabled, context); }
     void clearSuzuDiagnostics() { p_frontend->call<fcitx::IAndroidFrontend::clearSuzuDiagnostics>(); }
     std::string suzuDiagnostics() { return p_frontend->call<fcitx::IAndroidFrontend::suzuDiagnostics>(); }
     std::string suzuStatus() {
@@ -769,6 +770,12 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_startupFcitx(
         androidfrontend->template call<fcitx::IAndroidFrontend::setPagedCandidateCallback>(pagedCandidateCallback);
         androidfrontend->template call<fcitx::IAndroidFrontend::setSwitchInputMethodCallback>(switchInputMethodCallback);
         androidfrontend->template call<fcitx::IAndroidFrontend::setToastCallback>(toastCallback);
+        androidfrontend->template call<fcitx::IAndroidFrontend::setInputRecordingCallback>([](const std::string &payload) {
+            auto env = GlobalRef->AttachEnv();
+            auto params = JRef<jobjectArray>(env, env->NewObjectArray(1, GlobalRef->Object, nullptr));
+            env->SetObjectArrayElement(params, 0, JString(env, payload));
+            env->CallStaticVoidMethod(GlobalRef->Fcitx, GlobalRef->HandleFcitxEvent, 11, *params);
+        });
     });
     FCITX_INFO() << "Finishing startup";
 }
@@ -1376,4 +1383,10 @@ Java_org_fcitx_fcitx5_android_completion_FixedDictionaryNative_convert(JNIEnv *e
         env->SetByteArrayRegion(result, 0, converted.size(), reinterpret_cast<const jbyte *>(converted.data()));
         return result;
     } catch (const std::exception &error) { throwJavaException(env, error.what()); return nullptr; }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_setInputRecordingNative(JNIEnv *env, jclass, jstring session, jboolean enabled, jstring context) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().setInputRecording(CString(env, session), enabled, CString(env, context));
 }

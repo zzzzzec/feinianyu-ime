@@ -2,7 +2,7 @@
 
 基于 Fcitx5 Android 的中文输入法，使用 Suzu 重排拼音候选，并支持 Qwen 上屏后短语补全。
 
-[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.2.md) · [智能续写](docs/qwen-completion.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
+[下载 APK](https://github.com/zzzzzec/feinianyu-ime/releases/latest) · [中文更新记录](docs/changelog/0.3.4.md) · [智能续写](docs/qwen-completion.md) · [遥测](docs/telemetry.md) · [续写评测](docs/completion-evaluation.md) · [模型与字体设置](docs/suzu.md) · [更新机制](docs/updates.md)
 
 ## 当前功能
 
@@ -15,7 +15,7 @@
 - “排序诊断”可查看候选原序、模型分数、最终顺序与跳过原因，并导出 JSON 日志。
 - 剪贴板支持文字和图片瀑布流混排，图片铺满卡片、长按查看完整图片，以及固定、删除、撤销和分享。
 
-个人训练数据采集、屏幕上下文、个性化训练仍属于后续计划，尚未实现。
+“[遥测](docs/telemetry.md)”可采集原始拼音、候选顺序和选词行为以建立[回放样本](docs/input-dataset.md)，并独立采集续写性能样本。采集与云端同步均默认关闭，支持排除应用、导出和清空。可填写 HTTPS 服务地址，导入设备配对文件后开启自动同步，按网络和充电条件将持久化批次上传到私有存储。屏幕上下文和手机端个性化训练尚未实现。
 
 ## 查看与导出排序日志
 

@@ -84,6 +84,9 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     override suspend fun setSuzuContext(context: String, enabled: Boolean, allowDiagnosticText: Boolean) =
         withFcitxContext { setSuzuContextNative(context, enabled, allowDiagnosticText) }
 
+    override suspend fun setInputRecording(session: String, enabled: Boolean, context: String) =
+        withFcitxContext { setInputRecordingNative(session, enabled, context) }
+
     override suspend fun setSuzuDiagnostics(enabled: Boolean) = withFcitxContext { setSuzuDiagnosticsNative(enabled) }
     override suspend fun clearSuzuDiagnostics() = withFcitxContext { clearSuzuDiagnosticsNative() }
     override suspend fun suzuDiagnostics() = withFcitxContext { suzuDiagnosticsNative() }
@@ -224,6 +227,9 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         private external fun setSuzuContextNative(context: String, enabled: Boolean, allowDiagnosticText: Boolean)
         @JvmStatic
         private external fun setSuzuDiagnosticsNative(enabled: Boolean)
+
+        @JvmStatic
+        private external fun setInputRecordingNative(session: String, enabled: Boolean, context: String)
         @JvmStatic
         private external fun clearSuzuDiagnosticsNative()
         @JvmStatic
@@ -419,8 +425,13 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         @Suppress("unused")
         @JvmStatic
         fun handleFcitxEvent(type: Int, params: Array<Any>) {
+            // Dataset events bypass logging and the UI flow (which may drop old events).
+            if (type == FcitxEvent.EventType.Dataset.ordinal) {
+                org.fcitx.fcitx5.android.dataset.InputDataset.nativeEvent(params[0] as String)
+                return
+            }
             val event = FcitxEvent.create(type, params)
-            Timber.d("Handling $event")
+            Timber.d("Handling ${event.eventType}")
             fcitxEventHandlers.forEach { it.invoke(event) }
             eventFlow_.tryEmit(event)
         }
@@ -446,6 +457,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
 
     private val dispatcher = FcitxDispatcher(object : FcitxDispatcher.FcitxController {
         override fun nativeStartup() {
+            org.fcitx.fcitx5.android.dataset.InputDataset.initialize(context)
             DataManager.sync()
             org.fcitx.fcitx5.android.data.pinyin.BundledPinyinDictionaries.install(context)
             val locale = Locales.fcitxLocale

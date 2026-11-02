@@ -145,6 +145,8 @@ class FcitxApplication : Application() {
         if (!isDirectBootMode) {
             org.fcitx.fcitx5.android.data.clipboard.ScreenshotMonitor.init()
             AppUpdater.schedule(this)
+            org.fcitx.fcitx5.android.dataset.InputDataset.initialize(this)
+            org.fcitx.fcitx5.android.dataset.TelemetrySync.schedule(this)
             coroutineScope.launch { AppUpdater.check(this@FcitxApplication) }
         }
         registerReceiver(shutdownReceiver, IntentFilter(Intent.ACTION_SHUTDOWN))

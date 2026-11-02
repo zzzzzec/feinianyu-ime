@@ -1,0 +1,18 @@
+<resources>
+    <string name="dataset_title">遥测</string>
+    <string name="dataset_record">记录输入与候选</string>
+    <string name="dataset_scope">记录原始拼音、候选顺序、选词和上屏文字。密码和禁止个性化学习的输入框不记录。</string>
+    <string name="dataset_excluded">不采集的应用</string>
+    <string name="dataset_export">导出数据集 ZIP</string>
+    <string name="dataset_clear">清空采集数据</string>
+    <string name="dataset_clear_message">删除本机所有采集记录及待上传批次。云端数据和已导出文件保留。</string>
+    <string name="dataset_exporting">正在导出…</string>
+    <string name="dataset_exported">数据集已导出</string>
+    <string name="dataset_status">%1$d 条事件 · %2$.1f MB / 256 MB\n%3$s</string>
+    <string name="dataset_running">采集中</string>
+    <string name="dataset_paused">已暂停</string>
+    <string name="dataset_limit">达到容量上限，已暂停。导出并清空后可继续。</string>
+    <string name="dataset_write_error">写入失败，已暂停。请检查可用空间。</string>
+    <string name="dataset_queue_full">写入队列已满，已暂停。</string>
+    <string name="dataset_no_apps">开启采集并输入后，可在这里选择应用。</string>
+</resources>

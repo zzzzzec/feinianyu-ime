@@ -112,3 +112,4 @@ lint/tmp/
 *.jks
 *.keystore
 /dist/
+/scripts/__pycache__/

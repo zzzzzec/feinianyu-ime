@@ -5,6 +5,9 @@
 
 package org.fcitx.fcitx5.android.input
 
+import org.fcitx.fcitx5.android.dataset.InputDataset
+import org.json.JSONObject
+
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.pm.ActivityInfo
@@ -136,7 +139,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
     fun cancelCompletion() { completion.invalidate() }
     fun acceptCompletion(index: Int) = completion.accept(index)
-    private fun commitCompletion(text: String) { commitText(text) }
+    private fun commitCompletion(text: String) { commitText(text, source = "completion") }
     private val completionPreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
         lifecycleScope.launch {
             completion.invalidate(clearContext = true)
@@ -249,9 +252,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 val allowed = SuzuContextPolicy.allows(currentInputEditorInfo)
                 val enabled = prefs.keyboard.suzuEnabled.getValue() && allowed
                 val recording = org.fcitx.fcitx5.android.diagnostics.RankingDiagnosticsSettings.enabled(this@FcitxInputMethodService)
-                SuzuSnapshot(enabled, allowed, recording, if (allowed && (enabled || recording)) readSuzuContext() else "")
+                val dataset = if (datasetEditorActive) InputDataset.session(this@FcitxInputMethodService, currentInputEditorInfo) else null
+                SuzuSnapshot(enabled, allowed, recording, if (allowed && (enabled || recording || dataset != null)) readSuzuContext() else "", dataset)
             }
             fcitx.runOnReady {
+                setInputRecording(snapshot.dataset.orEmpty(), snapshot.dataset != null, snapshot.context)
                 setSuzuDiagnostics(snapshot.recording)
                 setSuzuContext(snapshot.context, snapshot.enabled, snapshot.allowed)
                 block()
@@ -261,7 +266,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         return job
     }
 
-    private data class SuzuSnapshot(val enabled: Boolean, val allowed: Boolean, val recording: Boolean, val context: String)
+    private var datasetEditorActive = false
+
+    private data class SuzuSnapshot(val enabled: Boolean, val allowed: Boolean, val recording: Boolean, val context: String, val dataset: String?)
 
     private fun readSuzuContext(): String {
         if (selection.latest.isNotEmpty()) return ""
@@ -319,7 +326,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     private fun handleFcitxEvent(event: FcitxEvent<*>) {
         when (event) {
             is FcitxEvent.CommitStringEvent -> {
-                commitText(event.data.text, event.data.cursor)
+                commitText(event.data.text, event.data.cursor, source = "engine")
             }
             is FcitxEvent.KeyEvent -> event.data.let event@{
                 if (it.states.virtual) {
@@ -330,7 +337,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                         FcitxKeyMapping.FcitxKey_Left -> handleArrowKey(KeyEvent.KEYCODE_DPAD_LEFT)
                         FcitxKeyMapping.FcitxKey_Right -> handleArrowKey(KeyEvent.KEYCODE_DPAD_RIGHT)
                         else -> if (it.unicode > 0) {
-                            commitText(Character.toString(it.unicode))
+                            commitText(Character.toString(it.unicode), source = "engine_key")
                         } else {
                             Timber.w("Unhandled Virtual KeyEvent: $it")
                         }
@@ -383,7 +390,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     } else {
                         // no matching keyCode, commit character once on key down
                         if (!it.up && it.unicode > 0) {
-                            commitText(Character.toString(it.unicode))
+                            commitText(Character.toString(it.unicode), source = "engine_key")
                         } else {
                             Timber.w("Unhandled Fcitx KeyEvent: $it")
                         }
@@ -427,6 +434,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleDeleteSurrounding(before: Int, after: Int) {
+        InputDataset.event("editor_delete", JSONObject().put("before", before).put("after", after).put("method", "engine"))
         val ic = currentInputConnection ?: return
         if (before > 0) {
             selection.predictOffset(-before)
@@ -439,6 +447,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleBackspaceKey() {
+        InputDataset.event("editor_delete", JSONObject().put("method", "backspace").put("cursor", selection.latest.start).put("selection_end", selection.latest.end))
         val lastSelection = selection.latest
         if (lastSelection.isNotEmpty()) {
             selection.predict(lastSelection.start)
@@ -509,9 +518,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         currentInputConnection.setSelection(target, target)
     }
 
-    fun commitText(text: String, cursor: Int = -1) {
+    fun commitText(text: String, cursor: Int = -1, source: String = "direct") {
         completion.invalidate()
         val ic = currentInputConnection ?: return
+        val replaceStart = if (composing.isEmpty()) selection.latest.start else composing.start
+        val replaceEnd = if (composing.isEmpty()) selection.latest.end else composing.end
+        var applied = false
         // when composing text equals commit content, finish composing text as-is
         if (composing.isNotEmpty() && composingText.toString() == text) {
             val c = if (cursor == -1) text.length else cursor
@@ -522,8 +534,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                     selection.predict(target)
                     ic.setSelection(target, target)
                 }
-                ic.finishComposingText()
+                applied = ic.finishComposingText()
             }
+            InputDataset.editorCommit(text, source, applied, replaceStart, replaceEnd)
             completion.changed()
             return
         }
@@ -533,20 +546,21 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         resetComposingState()
         if (cursor == -1) {
             selection.predict(start + text.length)
-            ic.commitText(text, 1)
+            applied = ic.commitText(text, 1)
         } else {
             val target = start + cursor
             selection.predict(target)
             ic.withBatchEdit {
-                commitText(text, 1)
+                applied = commitText(text, 1)
                 setSelection(target, target)
             }
         }
+        InputDataset.editorCommit(text, source, applied, replaceStart, replaceEnd)
         completion.changed()
     }
 
     fun pasteClipboardEntry(entry: org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry): Boolean {
-        if (!entry.isImage) { if (currentInputConnection == null) return false; commitText(entry.text); return true }
+        if (!entry.isImage) { if (currentInputConnection == null) return false; commitText(entry.text, source = "paste"); return true }
         val connection = currentInputConnection ?: return false
         val info = currentInputEditorInfo ?: return false
         return try {
@@ -839,6 +853,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+        datasetEditorActive = true
+        InputDataset.editorChanged(this, attribute)
         completionEditor++
         completion.invalidate(clearContext = true)
         // update selection as soon as possible
@@ -917,6 +933,12 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             cursorUpdateIndex
         )
         inputView?.updateSelection(newSelStart, newSelEnd)
+        if (InputDataset.currentSession() != null) {
+            InputDataset.event("editor_selection", JSONObject().put("old_start", oldSelStart).put("old_end", oldSelEnd)
+                .put("new_start", newSelStart).put("new_end", newSelEnd)
+                .put("composing_start", candidatesStart).put("composing_end", candidatesEnd)
+                .put("observation_only", true))
+        }
         if (oldSelStart != newSelStart || oldSelEnd != newSelEnd || candidatesStart != -1 || candidatesEnd != -1) completion.changed()
     }
 
@@ -1189,6 +1211,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onFinishInput() {
+        datasetEditorActive = false
+        InputDataset.endEditor()
         completionEditor++
         completion.invalidate(clearContext = true)
         Timber.d("onFinishInput")
@@ -1200,6 +1224,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onUnbindInput() {
+        datasetEditorActive = false
+        InputDataset.endEditor()
         cachedKeyEvents.evictAll()
         cachedKeyEventIndex = 0
         cursorUpdateIndex = 0
@@ -1212,6 +1238,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onDestroy() {
+        InputDataset.endEditor()
         CompletionSettings.unregister(this, completionPreferenceListener)
         QwenCompletionEngine.setActive(this, false)
         completion.invalidate(clearContext = true)

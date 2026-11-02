@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="sharedpref" path="telemetry.xml" />
+        <exclude domain="sharedpref" path="input_dataset.xml" />
         <exclude
             domain="file"
             path="usr" />
@@ -15,6 +17,8 @@
             path="README.md" />
     </cloud-backup>
     <device-transfer>
+        <exclude domain="sharedpref" path="telemetry.xml" />
+        <exclude domain="sharedpref" path="input_dataset.xml" />
         <exclude
             domain="file"
             path="usr" />

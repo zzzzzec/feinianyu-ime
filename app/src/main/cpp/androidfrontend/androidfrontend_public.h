@@ -21,6 +21,7 @@ typedef std::function<void(const InputMethodStatus &)> InputMethodChangeCallback
 typedef std::function<void(const std::vector<ActionEntity> &, const InputMethodStatus &)> StatusAreaUpdateCallback;
 typedef std::function<void(const int, const int)> DeleteSurroundingCallback;
 typedef std::function<void(const std::string &)> ToastCallback;
+typedef std::function<void(const std::string &)> InputRecordingCallback;
 typedef std::function<void(const PagedCandidateEntity &)> PagedCandidateCallback;
 typedef std::function<void(const int, const std::string &)> SwitchInputMethodCallback;
 
@@ -64,6 +65,8 @@ FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, suzuStatus,
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setSuzuDiagnostics, void(bool))
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, suzuDiagnostics, std::string())
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, clearSuzuDiagnostics, void())
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setInputRecording, void(const std::string &, bool, const std::string &))
+FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, setInputRecordingCallback, void(const InputRecordingCallback &))
 
 FCITX_ADDON_DECLARE_FUNCTION(AndroidFrontend, getCandidates,
                              std::vector<CandidateEntity>(const int, const int))
