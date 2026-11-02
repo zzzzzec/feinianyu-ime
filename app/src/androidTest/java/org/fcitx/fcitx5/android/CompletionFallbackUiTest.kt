@@ -11,6 +11,7 @@ import androidx.core.widget.NestedScrollView
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
 import org.fcitx.fcitx5.android.completion.*
+import org.fcitx.fcitx5.android.core.*
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.dataset.InputDataset
@@ -73,7 +74,9 @@ class CompletionFallbackUiTest {
             }
             fcitx.runOnReady { reset(); activateIme("pinyin") }
             delay(250)
-            instrumentation.sendStringSync(pinyin)
+            // Drive setup keys synchronously; Android's injected key events may
+            // still be queued when a prefix already offers the expected phrase.
+            fcitx.runOnReady { for (key in pinyin) sendKey(key) }
             var selected = -1
             waitUntil("Pinyin composition should offer $text") {
                 selected = runBlocking { fcitx.runOnReady { getCandidates(0, 16) } }.indexOfFirst { it.text == text }
