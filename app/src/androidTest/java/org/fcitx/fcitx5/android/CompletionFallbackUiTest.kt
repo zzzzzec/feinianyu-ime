@@ -74,10 +74,12 @@ class CompletionFallbackUiTest {
             fcitx.runOnReady { reset(); activateIme("pinyin") }
             delay(250)
             instrumentation.sendStringSync(pinyin)
-            waitUntil("Pinyin composition should offer $text") { nodes().any { it.text?.toString() == text } }
-            var node = nodes().first { it.text?.toString() == text }
-            while (!node.isClickable && node.parent != null) node = checkNotNull(node.parent)
-            assertTrue(node.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            var selected = -1
+            waitUntil("Pinyin composition should offer $text") {
+                selected = runBlocking { fcitx.runOnReady { getCandidates(0, 16) } }.indexOfFirst { it.text == text }
+                selected >= 0
+            }
+            assertTrue(fcitx.runOnReady { select(selected) })
             waitUntil("Pinyin should commit the intended text") { editor.text.toString() == text }
             waitUntil("Native post-commit predictions should be visible with AI disabled") { items("native_prediction_suggestion").isNotEmpty() }
         }
@@ -140,6 +142,9 @@ class CompletionFallbackUiTest {
             val fallbackText = fallback.contentDescription.toString()
             assertTrue(fallback.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             waitUntil("Native fallback remains functional when AI is switched off") { editor.text.toString() == "你好" + fallbackText }
+        } catch (error: Throwable) {
+            screenshot("completion-fallback-failure.png")
+            throw error
         } finally {
             if (nativeModelUnloaded) QwenModelStore.readyFile(app)?.let { QwenNative.load(it.absolutePath) }
             oldIme?.let { fcitx.runOnReady { activateIme(it) } }
