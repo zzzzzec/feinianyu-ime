@@ -79,11 +79,18 @@ class CompletionFallbackUiTest {
             delay(400)
             var selected = -1
             waitUntil("Pinyin composition should offer $text") {
+                val raw = fcitx.runImmediately { clientPreeditCached.toString() + inputPanelCached.preedit.toString() }
+                    .filter { it in 'a'..'z' }
+                if (raw != pinyin) return@waitUntil false
                 selected = runBlocking { fcitx.runOnReady { getCandidates(0, 16) } }.indexOfFirst { it.text == text }
                 selected >= 0
             }
+            println("FALLBACK_SETUP: complete_input=$pinyin native_index=$selected")
             assertTrue(fcitx.runOnReady { select(selected) })
             waitUntil("Pinyin should commit the intended text") { editor.text.toString() == text }
+            waitUntil("The complete pinyin must be consumed before testing predictions") {
+                fcitx.runImmediately { clientPreeditCached.isEmpty() && inputPanelCached.preedit.isEmpty() }
+            }
             waitUntil("Native post-commit predictions should be visible with AI disabled") { items("native_prediction_suggestion").isNotEmpty() }
         }
         try {
