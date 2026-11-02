@@ -105,7 +105,8 @@ public:
                 // PredictionSize is bounded at 100. Supply the full post-commit list
                 // so AI/native merged views retain exact indices, including expansion.
                 // Composing candidates keep their usual paged delivery.
-                const int capacity = inputPanel().preedit().empty() ? 100 : 16;
+                const bool postCommit = inputPanel().preedit().empty() && inputPanel().clientPreedit().empty();
+                const int capacity = postCommit ? 100 : 16;
                 const int limit = total < 0 ? capacity : std::min(total, capacity);
                 for (int i = 0; i < limit; i++) {
                     try {
