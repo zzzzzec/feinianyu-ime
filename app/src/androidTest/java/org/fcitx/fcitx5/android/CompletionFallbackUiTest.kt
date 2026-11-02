@@ -76,7 +76,7 @@ class CompletionFallbackUiTest {
             instrumentation.sendStringSync(pinyin)
             waitUntil("Pinyin composition should offer $text") { nodes().any { it.text?.toString() == text } }
             var node = nodes().first { it.text?.toString() == text }
-            while (!node.isClickable && node.parent != null) node = node.parent
+            while (!node.isClickable && node.parent != null) node = checkNotNull(node.parent)
             assertTrue(node.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             waitUntil("Pinyin should commit the intended text") { editor.text.toString() == text }
             waitUntil("Native post-commit predictions should be visible with AI disabled") { items("native_prediction_suggestion").isNotEmpty() }
