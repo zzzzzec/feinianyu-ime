@@ -11,7 +11,7 @@ async function loadKeys(issuer, force = false) {
     const cached = keyCache.get(issuer);
     if (!force && cached && cached.expires > Date.now()) return cached.keys;
     let response;
-    try { response = await fetch(issuer + '/cdn-cgi/access/certs', { redirect: 'error', signal: AbortSignal.timeout(5000) }); }
+    try { response = await fetch(issuer + '/cdn-cgi/access/certs', { redirect: 'manual', signal: AbortSignal.timeout(5000) }); }
     catch { throw new AuthError(503, 'identity_unavailable'); }
     if (!response.ok) throw new AuthError(503, 'identity_unavailable');
     const value = await response.json();

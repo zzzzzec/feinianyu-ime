@@ -58,3 +58,11 @@ wrangler secret put AUTH_CONFIG --config wrangler.toml
 从此目录运行 Wrangler，保证自定义构建命令使用正确工作目录。生成的 `.generated/` 不提交到 Git。首次部署应先配置精确主机名对应的 Access 应用和授权策略；没有有效 AUTH_CONFIG 时 Worker 保持拒绝访问。
 
 验证包含签名伪造、错误受众、过期会话、未授权读取、目录越界、写操作拒绝、批次完整性和真实拼音关联。云端配置读回确认 R2 binding、AUTH_CONFIG 和 Access audience 一致，匿名请求跳转登录；现有 R2 批次通过相同解压与聚合代码读回验证。实际浏览器视觉和 GitHub 登录流程需使用者打开入口确认。
+
+验签公钥请求使用 `redirect: 'manual'`，收到重定向时拒绝，不继续跟随。Workers 不支持 Node 中可用的 `redirect: 'error'`。除上述 Node 测试外，使用官方 Miniflare/workerd 运行真实默认验签路径，覆盖公钥获取、签名、缓存、邮箱、有效期、匿名及公钥端点重定向：
+
+```powershell
+node scripts/check-auth-runtime.mjs
+```
+
+需要可解析的 `miniflare` 测试工具；也可以用 `MINIFLARE_MODULE` 指向已安装 Wrangler 携带的 Miniflare 模块路径。测试只使用临时生成的合成签名和公钥，不连接真实账号或 R2。
