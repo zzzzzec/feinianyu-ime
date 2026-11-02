@@ -40,6 +40,9 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
         AppPrefs.getInstance().internal.usedClipboardSuggestion.getValue() == ClipboardSuggestion.key(entry)
 
     fun markSuggestionUsed(entry: ClipboardEntry) {
+        // Pasting an older history row must not change the latest copy's consumption state.
+        val current = lastEntry ?: return
+        if (ClipboardSuggestion.key(current) != ClipboardSuggestion.key(entry)) return
         AppPrefs.getInstance().internal.usedClipboardSuggestion.setValue(ClipboardSuggestion.key(entry))
         onUpdateListeners.forEach { it.onUpdate(lastEntry) }
     }

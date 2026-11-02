@@ -317,7 +317,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
                     clipboardEntry?.let {
-                        service.pasteClipboardEntry(it)
+                        if (it == ClipboardManager.lastEntry) service.pasteClipboardEntry(it)
+                        else updateClipboardSuggestion(ClipboardManager.lastEntry)
                     }
                 }
                 setOnLongClickListener {
