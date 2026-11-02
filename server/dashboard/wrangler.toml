@@ -1,0 +1,17 @@
+name = "feinianyu-ime-dashboard"
+main = "src/worker.mjs"
+compatibility_date = "2025-09-01"
+workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = false
+
+[build]
+command = "node scripts/build-assets.mjs"
+
+[[r2_buckets]]
+binding = "TELEMETRY"
+bucket_name = "feinianyu-ime-telemetry"
+
+# AUTH_CONFIG is a Worker secret containing the Access issuer, audience and emails.

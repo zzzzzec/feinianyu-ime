@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light"><title>飞念语 · 数据仪表盘</title>
+  <link rel="stylesheet" href="/style.css"><script type="module" src="/app.mjs"></script>
+</head>
+<body>
+<header class="topbar"><div class="shell topbar-inner">
+  <a class="brand" href="/"><span class="brand-icon">语</span><span>飞念语<span class="brand-sub">数据仪表盘</span></span></a>
+  <div class="account"><span class="account-dot"></span><span id="viewer">验证登录中</span><a href="/cdn-cgi/access/logout">退出</a></div>
+</div></header>
+<main class="shell">
+  <section class="intro"><div><div class="eyebrow">FEINIANYU IME / TELEMETRY</div><h1>输入数据概览</h1><p>同步进度、选词行为与续写性能</p></div><div class="live"><span></span><span id="last-check">连接中</span></div></section>
+  <section class="filters" aria-label="数据筛选">
+    <label>时间范围<select id="range"><option value="today">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="all">全部</option></select></label>
+    <label>设备<select id="device"><option value="all">全部设备</option></select></label>
+    <label class="check-label"><input type="checkbox" id="include-tests">包含测试记录</label>
+    <div class="filter-actions"><button class="button secondary" id="export">导出汇总</button><button class="button primary" id="refresh"><span aria-hidden="true">↻</span> 刷新数据</button></div>
+  </section>
+  <div id="notice" class="notice" role="status" hidden></div>
+  <div class="progress-row"><span id="progress">正在读取云端清单…</span><span id="storage"></span></div>
+  <section class="kpis" aria-label="数据概览">
+    <article class="kpi"><div class="kpi-label">采集事件<span class="mini-icon">↗</span></div><div class="kpi-value" id="event-count">—</div><div class="kpi-note">当前范围内的持久化记录</div></article>
+    <article class="kpi"><div class="kpi-label">上屏字符<span class="mini-icon">字</span></div><div class="kpi-value" id="char-count">—</div><div class="kpi-note">按成功上屏统计，含粘贴</div></article>
+    <article class="kpi"><div class="kpi-label">拼音选词样本<span class="mini-icon">选</span></div><div class="kpi-value" id="choice-count">—</div><div class="kpi-note">可关联拼音、候选与实际选择</div></article>
+    <article class="kpi"><div class="kpi-label">同步设备<span class="mini-icon">⌁</span></div><div class="kpi-value" id="device-count">—</div><div class="kpi-note">当前范围内有记录的配对设备</div></article>
+  </section>
+  <section class="chart-grid">
+    <article class="panel trend-panel"><div class="panel-head"><div><h2>采集趋势</h2><p id="trend-note">按浏览器本地日期统计</p></div><span class="legend"><i></i>事件数</span></div><div id="trend" class="trend" aria-label="每日事件趋势"></div></article>
+    <article class="panel"><div class="panel-head"><div><h2>被选项的位置</h2><p>原候选顺序与实际展示顺序</p></div></div><div class="rank-legend"><span><i class="original"></i>原序</span><span><i></i>展示序</span></div><div id="ranks" class="rank-chart"></div><div class="panel-foot">展示首选采纳 <strong id="top-one">—</strong><span>依据实际选词行为</span></div></article>
+  </section>
+  <section class="panel samples-panel"><div class="panel-head"><div><h2>拼音选词样本</h2><p>保留真实拼音与选择，供后续回放评测。</p></div><label class="check-label"><input type="checkbox" id="hide-text">隐藏文本</label></div>
+    <div class="table-scroll"><table><thead><tr><th>时间</th><th>输入拼音</th><th>最终上屏</th><th>候选位置</th><th>选择方式</th><th>前文</th></tr></thead><tbody id="samples"></tbody></table></div><div id="sample-empty" class="empty" hidden>还没有完整的拼音选词样本</div>
+    <div class="panel-foot"><span>自然选择记录 · 非人工正确答案</span><span>最近 40 条</span></div>
+  </section>
+  <section class="panel perf-panel"><div class="panel-head"><div><h2>智能续写</h2><p id="perf-note">开启“采集续写性能样本”后显示耗时。</p></div><span class="badge">端侧推理</span></div>
+    <div class="perf-grid"><div><span>成功展示</span><strong id="shown">—</strong></div><div><span>点击采纳</span><strong id="accepted">—</strong></div><div><span>采纳率</span><strong id="accept-rate">—</strong></div><div><span>界面延迟 P50</span><strong id="ui-p50">—</strong></div><div><span>界面延迟 P95</span><strong id="ui-p95">—</strong></div><div><span>候选排序 P50</span><strong id="rank-p50">—</strong></div></div>
+    <div id="states" class="state-tags"></div>
+  </section>
+  <section class="bottom-grid"><article class="panel"><div class="panel-head"><div><h2>数据构成</h2><p>采集事件的类型分布</p></div></div><div id="event-types" class="distribution"></div></article><article class="panel"><div class="panel-head"><div><h2>设备与数据质量</h2><p>最近记录时间和关联情况</p></div></div><div id="devices" class="devices"></div><div id="quality" class="quality"></div></article></section>
+  <div class="load-more"><button class="button secondary" id="more" hidden>继续分析更早的批次</button><button class="button secondary" id="more-list" hidden>继续载入存储清单</button></div>
+  <footer><span>飞念语输入法</span><span id="coverage">R2 · 登录后只读查看</span></footer>
+</main>
+</body></html>
