@@ -55,6 +55,7 @@ Qwen 在 Wi-Fi 下下载独立模型；下载完成并校验后离线工作。
 - `QwenCompletionTest`：使用仅供测试的无门槛参数验证批量分支、缓存隔离、取消、超时、无效模型保护、原有拼音联想恢复；不要求生产策略始终生成三条。
 - `QwenOptimizationTest`：在真实模型解码中途取消、在长前文计算中超时，检查快照恢复后的候选与冷启动一致，并验证线程池重配。线程性能测试须显式传入 `qwen_benchmark=true`，普通测试不运行。
 - 签名 debug APK 和匹配的 Android-test APK 覆盖安装后，可执行 `pwsh scripts/run-qwen-benchmark.ps1 -Serial <设备序列号>`。脚本暂时切到另一输入法，运行固定公开测试句的冷/热缓存和线程组合，最后恢复原输入法；输出不含输入原文、候选文字或设备序列号。模型须已在手机上下载好，不清除应用数据。
+- 脚本优先使用 Gboard 隔离测试，不选择语音输入法；结果直接通过调试权限读取应用私有文件，不需要存储权限。`-ReadReportOnly` 可重新读取上次已完成的报告。
 - `python scripts/check-inference-apk.py <APK>` 验证全部 CPU 变体、通用回退、动态库依赖和 ELF 16 KiB 对齐。构建及模拟器正确性检查不代表真机加速幅度。
 - `QwenConfidenceEvaluationTest`：全词表概率门槛、低概率 token 不追加、古诗带/不带标点的固定答案诊断。答案只用于评分，不输入模型；诊断运行成功不等于诗句全部接对。
 - `QwenCompletionUiTest`：原候选栏点选、保守策略只留一条/完全不显示、旧候选失效、密码框排除及普通拼音点选。该功能测试放宽模拟器时限，结束后恢复。

@@ -1,27 +1,40 @@
 param(
     [Parameter(Mandatory=$true)][string]$Serial,
     [string]$Adb = 'adb',
-    [string]$OutputDirectory = 'dist/qwen-benchmark'
+    [string]$OutputDirectory = 'dist/qwen-benchmark',
+    [switch]$ReadReportOnly
 )
 $ErrorActionPreference = 'Stop'
 $destination = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
+function Read-BenchmarkReport {
+    $lines = @(& $Adb -s $Serial exec-out run-as dev.feinianyu.ime cat files/qwen-thread-benchmark.json)
+    if ($LASTEXITCODE -ne 0) { throw 'Could not read the report. A signed debug APK is required.' }
+    $payload = $lines -join "`n"
+    $report = $payload | ConvertFrom-Json
+    if ($report.schema -ne 1 -or !$report.metrics.Count) { throw 'Invalid benchmark report.' }
+    [IO.File]::WriteAllText((Join-Path $destination 'qwen-thread-benchmark.json'), $payload, [Text.UTF8Encoding]::new($false))
+}
+if ($ReadReportOnly) {
+    Read-BenchmarkReport
+    Write-Output "Benchmark report saved to $destination"
+    return
+}
 $originalIme = (& $Adb -s $Serial shell settings get secure default_input_method).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Device is unavailable or not authorized.' }
-$alternatives = @(@(& $Adb -s $Serial shell ime list -s) | Where-Object { $_ -and $_ -notlike 'dev.feinianyu.ime/*' })
+$alternatives = @(@(& $Adb -s $Serial shell ime list -s) | Where-Object {
+    $_ -and $_ -notlike 'dev.feinianyu.ime/*' -and $_ -notmatch '(?i)voice|speech|googletts'
+})
 if (!$alternatives) { throw 'Enable another keyboard before running the isolated benchmark.' }
+$preferred = @($alternatives | Where-Object { $_ -like 'com.google.android.inputmethod.latin/*' })
+$alternateIme = if ($preferred.Count) { $preferred[0] } else { $alternatives[0] }
 try {
-    & $Adb -s $Serial shell ime set $alternatives[0]
+    & $Adb -s $Serial shell ime set $alternateIme
     if ($LASTEXITCODE -ne 0) { throw 'Could not isolate the benchmark from the active IME.' }
     $result = @(& $Adb -s $Serial shell am instrument -w -r -e class org.fcitx.fcitx5.android.QwenOptimizationTest -e qwen_benchmark true dev.feinianyu.ime.test/androidx.test.runner.AndroidJUnitRunner)
     $result | Set-Content -LiteralPath (Join-Path $destination 'instrumentation.txt') -Encoding utf8
     if ($LASTEXITCODE -ne 0 -or (($result -join "`n") -notmatch 'OK \(3 tests\)')) { throw 'Benchmark or correctness checks failed; see instrumentation.txt.' }
-    # run-as requires the signed debug APK and matching Android-test APK; no data is cleared.
-    $remote = '/sdcard/Android/data/dev.feinianyu.ime/files/qwen-thread-benchmark.json'
-    & $Adb -s $Serial shell run-as dev.feinianyu.ime cp files/qwen-thread-benchmark.json $remote
-    if ($LASTEXITCODE -ne 0) { throw 'Could not stage the benchmark report.' }
-    & $Adb -s $Serial pull $remote (Join-Path $destination 'qwen-thread-benchmark.json')
-    if ($LASTEXITCODE -ne 0) { throw 'Could not read the benchmark report.' }
+    Read-BenchmarkReport
 } finally {
     if ($originalIme -and $originalIme -ne 'null') { & $Adb -s $Serial shell ime set $originalIme | Out-Null }
 }
