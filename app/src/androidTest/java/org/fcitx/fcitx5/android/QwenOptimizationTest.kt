@@ -97,27 +97,46 @@ class QwenOptimizationTest {
         val prompts = listOf(prefix, "今天辛苦了，早点", "这份文件我看过了，有几个地方需要",
             "我不是不同意这个方案，只是担心现在上线会影响老用户，所以我建议")
         val profiles = listOf(2 to 2, 2 to 3, 2 to 4, 3 to 3, 4 to 4)
-        for (repeat in 0..2) for (order in profiles.indices) {
-            val (decode, prefill) = profiles[(order + repeat) % profiles.size]
-            QwenNative.configureThreads(decode, prefill)
-            for ((index, text) in prompts.withIndex()) {
-                QwenNative.reset()
-                for (mode in listOf("cold", "warm")) {
-                    val result = generate(text)
-                    assertTrue(result.toString(), result.getString("state") in listOf("generated", "abstained"))
-                    result.remove("text"); result.remove("candidates"); result.remove("candidate_scores")
-                    if (android.os.Build.VERSION.SDK_INT >= 29) result.put("thermal_status",
-                        (app.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).currentThermalStatus)
-                    runCatching { File("/proc/self/status").useLines { lines ->
-                        lines.firstOrNull { it.startsWith("VmRSS:") }?.let { line -> result.put("process_rss_kb", line.filter(Char::isDigit).toLong()) }
-                    } }
-                    metrics.put(result.put("case", index).put("repeat", repeat).put("profile_order", order).put("cache_mode", mode))
+        val oldDecode = CompletionSettings.decodeThreads(app)
+        val oldPrefill = CompletionSettings.prefillThreads(app)
+        // Re-create pools on the production worker, including its scheduling priority.
+        runBlocking { QwenCompletionEngine.pauseForSpeech(app) }
+        QwenNative.unload()
+        QwenCompletionEngine.setActive(app, true)
+        QwenCompletionEngine.resumeAfterSpeech(app)
+        try {
+            runBlocking { withTimeout(120000) {
+                while (QwenCompletionEngine.state.value !in listOf("ready", "error")) delay(50)
+            } }
+            assertEquals("ready", QwenCompletionEngine.state.value)
+            for (repeat in 0..2) for (order in profiles.indices) {
+                val (decode, prefill) = profiles[(order + repeat) % profiles.size]
+                CompletionSettings.setDecodeThreads(app, decode)
+                CompletionSettings.setPrefillThreads(app, prefill)
+                for ((index, text) in prompts.withIndex()) {
+                    QwenNative.reset()
+                    for (mode in listOf("cold", "warm")) {
+                        val result = runBlocking { QwenCompletionEngine.generate(app, text, QwenCompletionEngine.nextId(),
+                            30000, CompletionPolicy("benchmark_permissive", 0.0, 0.0, 0.0, 12, 1, 0.0)) }
+                        assertTrue(result.toString(), result.getString("state") in listOf("generated", "abstained"))
+                        result.remove("text"); result.remove("candidates"); result.remove("candidate_scores")
+                        if (android.os.Build.VERSION.SDK_INT >= 29) result.put("thermal_status",
+                            (app.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).currentThermalStatus)
+                        runCatching { File("/proc/self/status").useLines { lines ->
+                            lines.firstOrNull { it.startsWith("VmRSS:") }?.let { line -> result.put("process_rss_kb", line.filter(Char::isDigit).toLong()) }
+                        } }
+                        metrics.put(result.put("case", index).put("repeat", repeat).put("profile_order", order).put("cache_mode", mode))
+                    }
                 }
             }
+            val environment = runBlocking { JSONObject(CompletionPerf.export(app)) }
+            environment.remove("records"); environment.remove("threads"); environment.remove("batch_threads")
+            File(app.filesDir, "qwen-thread-benchmark.json").writeText(environment
+                .put("benchmark_policy", "permissive_fixed_workload").put("metrics", metrics).toString(2))
+        } finally {
+            CompletionSettings.setDecodeThreads(app, oldDecode)
+            CompletionSettings.setPrefillThreads(app, oldPrefill)
+            QwenCompletionEngine.setActive(app, false)
         }
-        val environment = runBlocking { JSONObject(CompletionPerf.export(app)) }
-        environment.remove("records"); environment.remove("threads"); environment.remove("batch_threads")
-        File(app.filesDir, "qwen-thread-benchmark.json").writeText(environment
-            .put("benchmark_policy", "permissive_fixed_workload").put("metrics", metrics).toString(2))
     }
 }
