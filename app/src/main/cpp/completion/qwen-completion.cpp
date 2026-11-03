@@ -4,6 +4,7 @@
 #include "inference-runtime.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -37,22 +38,30 @@ std::atomic<int64_t> runningRequest{0};
 std::atomic<int> runningPhase{0}; // 0 idle, 1 prefill, 2 decode; no editor text is exposed.
 int threads = 2, batchThreads = 2;
 ggml_threadpool *decodePool = nullptr, *prefillPool = nullptr;
+std::array<ggml_threadpool *, 5> poolsByThreads{};
 std::string selectedCpuLibrary;
 
 void freePools() {
-    if (context) llama_detach_threadpool(context.get());
-    if (prefillPool != decodePool) feinianyu::freeThreadpool(prefillPool);
-    feinianyu::freeThreadpool(decodePool);
+    for (auto &pool : poolsByThreads) {
+        feinianyu::freeThreadpool(pool);
+        pool = nullptr;
+    }
     decodePool = prefillPool = nullptr;
 }
 void configurePools() {
-    freePools();
     if (!context) return;
+    // The CPU backend retains its previous pool until the next graph. Keep every
+    // selected pool alive until the context is destroyed, including after detach.
+    auto poolFor = [](int count) {
+        auto &pool = poolsByThreads[count];
+        if (!pool) pool = feinianyu::newThreadpool(count);
+        return pool;
+    };
     llama_set_n_threads(context.get(), threads, batchThreads);
-    decodePool = feinianyu::newThreadpool(threads);
-    prefillPool = batchThreads == threads ? decodePool : feinianyu::newThreadpool(batchThreads);
-    if (decodePool && prefillPool) llama_attach_threadpool(context.get(), decodePool, prefillPool);
-    else freePools(); // llama.cpp's own pool remains a valid fallback.
+    decodePool = poolFor(threads);
+    prefillPool = poolFor(batchThreads);
+    if (!decodePool || !prefillPool) decodePool = prefillPool = nullptr;
+    llama_attach_threadpool(context.get(), decodePool, prefillPool);
 }
 Json configuration() {
     return {{"runtime_profile", "android-cpu-repack-cache-v2"}, {"cpu_backend_library", selectedCpuLibrary},
@@ -139,7 +148,14 @@ void clearLiveState() {
     if (context) llama_memory_clear(llama_get_memory(context.get()), true);
 }
 void clear() { cachedPrompt.clear(); cachedState.clear(); cachedLogits.clear(); clearLiveState(); }
-void release() { clear(); freePools(); context.reset(); model.reset(); loadedPath.clear(); }
+void release() {
+    clear();
+    if (context) llama_detach_threadpool(context.get());
+    context.reset();
+    freePools();
+    model.reset();
+    loadedPath.clear();
+}
 jbyteArray result(JNIEnv *env, const Json &data) {
     const auto value = data.dump(-1, ' ', false, Json::error_handler_t::replace);
     auto output = env->NewByteArray(static_cast<jsize>(value.size()));

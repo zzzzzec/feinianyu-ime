@@ -2,6 +2,8 @@
 package org.fcitx.fcitx5.android
 
 import androidx.test.platform.app.InstrumentationRegistry
+import android.app.Activity
+import android.content.Intent
 import kotlinx.coroutines.*
 import org.fcitx.fcitx5.android.completion.*
 import org.fcitx.fcitx5.android.dataset.InputDataset
@@ -19,6 +21,7 @@ class QwenOptimizationTest {
     private val app get() = InstrumentationRegistry.getInstrumentation().targetContext
     private var capture = false
     private var telemetry = false
+    private var foreground: Activity? = null
     private val prefix = "明天下午我有空，我们可以"
     private fun parse(bytes: ByteArray) = JSONObject(bytes.toString(Charsets.UTF_8))
     private fun generate(text: String, id: Long = QwenCompletionEngine.nextId(), budget: Int = 30000) =
@@ -27,6 +30,8 @@ class QwenOptimizationTest {
     @Before fun load() {
         capture = InputDataset.enabled(app); telemetry = TelemetrySettings.performance(app)
         InputDataset.setEnabled(app, false); TelemetrySettings.setPerformance(app, false)
+        foreground = InstrumentationRegistry.getInstrumentation().startActivitySync(
+            Intent(app, QwenBenchmarkActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         if (QwenModelStore.readyFile(app) == null) QwenModelStore.installVerified(app,
             File(app.getExternalFilesDir("completion-downloads"), "qa-model.gguf"))
         QwenNative.configureThreads(2, 2)
@@ -37,6 +42,7 @@ class QwenOptimizationTest {
         QwenNative.configureThreads(CompletionSettings.decodeThreads(app), CompletionSettings.prefillThreads(app))
         QwenNative.reset()
         InputDataset.setEnabled(app, capture); TelemetrySettings.setPerformance(app, telemetry)
+        foreground?.let { activity -> InstrumentationRegistry.getInstrumentation().runOnMainSync { activity.finish() } }
     }
 
     @Test fun cancelledAndTimedOutWorkPreservesOnlyCompleteSnapshots(): Unit = runBlocking {
@@ -77,7 +83,7 @@ class QwenOptimizationTest {
     }
 
     @Test fun cpuBackendAndPersistentPoolsFollowThreadConfiguration() {
-        for ((decode, prefill) in listOf(2 to 2, 2 to 4, 4 to 2)) {
+        for ((decode, prefill) in listOf(2 to 2, 2 to 3, 2 to 4, 3 to 3, 4 to 4, 4 to 2, 2 to 2)) {
             QwenNative.configureThreads(decode, prefill)
             val info = parse(QwenNative.runtimeInfo())
             assertTrue(info.toString(), info.getString("cpu_backend_library").startsWith("libggml-cpu"))

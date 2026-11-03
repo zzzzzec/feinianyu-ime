@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.graphics.Bitmap
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.core.widget.NestedScrollView
@@ -72,7 +73,15 @@ class CompletionFallbackUiTest {
                 activity.findViewById<NestedScrollView>(R.id.scroll).scrollTo(0,
                     (editor.top - 100 * app.resources.displayMetrics.density).toInt().coerceAtLeast(0))
             }
+            waitUntil("The IME must finish binding before selecting its language") {
+                imm.isActive(editor) && automation.windows.any {
+                    it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD && it.root?.packageName == app.packageName
+                }
+            }
             fcitx.runOnReady { reset(); activateIme("pinyin") }
+            waitUntil("Pinyin should be the active input method") {
+                runBlocking { fcitx.runOnReady { currentIme().uniqueName } } == "pinyin"
+            }
             delay(750)
             // Use real Android key down/up events and let the IME's key queue drain.
             for (key in pinyin) { instrumentation.sendStringSync(key.toString()); delay(100) }
