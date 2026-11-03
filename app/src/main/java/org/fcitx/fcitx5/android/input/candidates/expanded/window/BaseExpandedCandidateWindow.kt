@@ -183,6 +183,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
     }
 
     fun recycleCandidateViewHolder(holder: CandidateViewHolder) {
+        holder.ui.setQwenCompletion(false)
         holder.itemView.setOnClickListener(null)
         holder.itemView.setOnLongClickListener(null)
     }

@@ -14,7 +14,7 @@ class CompletionController(
     private val context: Context,
     private val scope: CoroutineScope,
     private val snapshot: () -> CompletionSnapshot?,
-    private val display: (List<String>?, (() -> Boolean)?) -> Boolean,
+    private val display: (List<String>?, String?, (() -> Boolean)?) -> Boolean,
     private val commit: (String) -> Unit
 ) {
     private var job: Job? = null
@@ -26,7 +26,7 @@ class CompletionController(
         epoch++
         job?.cancel(); job = null
         QwenCompletionEngine.cancel(activeId); activeId = 0
-        offered = null; display(null, null)
+        offered = null; display(null, null, null)
         if (clearContext) QwenCompletionEngine.clearContext()
     }
     fun changed() {
@@ -65,7 +65,7 @@ class CompletionController(
                 return@launch
             }
             offered = Offer(input, texts, policy, source, recording)
-            val accepted = display(texts) {
+            val accepted = display(texts, source) {
                 val now = SystemClock.elapsedRealtime() - start
                 val valid = CompletionSettings.enabled(context) && epoch == expectedEpoch && snapshot() == input && now < totalBudget
                 if (!valid) offered = null

@@ -24,6 +24,7 @@ class CandidateViewHolder(val ui: CandidateItemUi) : RecyclerView.ViewHolder(ui.
     }
 
     fun clear() {
+        ui.setQwenCompletion(false)
         update(-1, CandidateWord.Empty)
     }
 }

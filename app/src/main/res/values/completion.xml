@@ -24,6 +24,8 @@
     <string name="completion_perf">Performance records</string>
     <string name="completion_export">Export performance records</string>
     <item name="completion_suggestion" type="id" />
+    <item name="completion_qwen_marker" type="id" />
+    <string name="completion_source_qwen">Qwen completion</string>
     <item name="completion_test_input" type="id" />
     <item name="completion_confidence_selector" type="id" />
 </resources>

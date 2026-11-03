@@ -149,7 +149,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
     private val completion by lazy {
         CompletionController(this, lifecycleScope, ::completionSnapshot,
-            { text, shown -> inputView?.showCompletion(text, shown) ?: false }, ::commitCompletion)
+            { text, source, shown -> inputView?.showCompletion(text, source, shown) ?: false }, ::commitCompletion)
     }
     private fun completionSnapshot(): CompletionSnapshot? {
         fun blocked(reason: String): CompletionSnapshot? {

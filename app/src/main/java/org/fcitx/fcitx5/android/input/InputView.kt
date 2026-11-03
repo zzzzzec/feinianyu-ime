@@ -116,6 +116,7 @@ class InputView(
     private val keyboardWindow = KeyboardWindow()
     private var nativeCandidates = FcitxEvent.CandidateListEvent.Data()
     private var completionCandidates: Array<CandidateWord>? = null
+    private var completionSource: String? = null
     private var mergedCandidates: List<CompletionCandidate>? = null
     private var candidateVersion = 0L
     private var completionVersion = 0L
@@ -144,6 +145,7 @@ class InputView(
         val aiIndex = mixed?.aiIndex
         val nativeIndex = mixed?.nativeIndex ?: index
         val prediction = !hasNativePreedit()
+        holder.ui.setQwenCompletion(aiIndex != null && completionSource == "qwen")
         holder.itemView.id = when {
             aiIndex != null -> R.id.completion_suggestion
             prediction -> R.id.native_prediction_suggestion
@@ -168,17 +170,19 @@ class InputView(
         })
     }
 
-    fun showCompletion(texts: List<String>?, onShown: (() -> Boolean)?): Boolean {
+    fun showCompletion(texts: List<String>?, source: String?, onShown: (() -> Boolean)? = null): Boolean {
         val version = ++completionVersion
         if (texts.isNullOrEmpty() || !completionAvailable || hasNativePreedit()) {
             if (completionCandidates != null) {
                 completionCandidates = null
+                completionSource = null
                 mergedCandidates = null
                 renderCandidates(nativeCandidates)
                 if (windowManager.attachedWindow is BaseExpandedCandidateWindow<*>) windowManager.attachWindow(keyboardWindow)
             }
             return false
         }
+        completionSource = source
         completionCandidates = texts.map { CandidateWord("", it, "") }.toTypedArray()
         renderCompletionCandidates()
         val candidates = horizontalCandidate.view
