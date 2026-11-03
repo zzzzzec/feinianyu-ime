@@ -64,6 +64,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/fetch-suzu.ps1
+          ./scripts/fetch-kleidiai.ps1
           ./scripts/fetch-speech-runtime.ps1
 
       - name: Build Release APK
