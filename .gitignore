@@ -114,3 +114,4 @@ lint/tmp/
 *.keystore
 /dist/
 /scripts/__pycache__/
+/third_party/kleidiai/

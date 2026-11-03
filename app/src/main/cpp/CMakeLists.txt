@@ -69,7 +69,7 @@ target_link_libraries(native-lib
         )
 
 # copy module libraries from dependency lib
-add_custom_target(copy-fcitx5-modules
+add_custom_target(copy-fcitx5-modules ALL
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_PROPERTY:fcitx5::clipboard,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5::imselector,IMPORTED_LOCATION>
@@ -87,6 +87,7 @@ add_custom_target(copy-fcitx5-modules
         ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         COMMENT "Copying fcitx5 module libraries to :app"
         )
+add_dependencies(native-lib copy-fcitx5-modules)
 
 # install prebuilt assets
 install(FILES "${PREBUILT_DIR}/spell-dict/en_dict.fscd" DESTINATION "${FCITX_INSTALL_PKGDATADIR}/spell" COMPONENT prebuilt-assets)

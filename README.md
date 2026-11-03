@@ -95,6 +95,7 @@ Android 14 及以上若仅允许“选定照片”，无法读取之后的新截
 git clone --recurse-submodules https://github.com/zzzzzec/feinianyu-ime.git
 cd feinianyu-ime
 ./scripts/fetch-suzu.ps1
+./scripts/fetch-kleidiai.ps1
 ./scripts/fetch-speech-runtime.ps1
 ./gradlew.bat :app:assembleDebug -PbuildABI=arm64-v8a
 ```

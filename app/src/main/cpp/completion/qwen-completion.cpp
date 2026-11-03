@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <jni.h>
 #include <llama.h>
+#include "inference-runtime.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <atomic>
@@ -32,6 +33,32 @@ std::string loadedPath;
 std::vector<llama_token> cachedPrompt;
 std::vector<uint8_t> cachedState;
 std::vector<float> cachedLogits;
+std::atomic<int64_t> runningRequest{0};
+std::atomic<int> runningPhase{0}; // 0 idle, 1 prefill, 2 decode; no editor text is exposed.
+int threads = 2, batchThreads = 2;
+ggml_threadpool *decodePool = nullptr, *prefillPool = nullptr;
+std::string selectedCpuLibrary;
+
+void freePools() {
+    if (context) llama_detach_threadpool(context.get());
+    if (prefillPool != decodePool) feinianyu::freeThreadpool(prefillPool);
+    feinianyu::freeThreadpool(decodePool);
+    decodePool = prefillPool = nullptr;
+}
+void configurePools() {
+    freePools();
+    if (!context) return;
+    llama_set_n_threads(context.get(), threads, batchThreads);
+    decodePool = feinianyu::newThreadpool(threads);
+    prefillPool = batchThreads == threads ? decodePool : feinianyu::newThreadpool(batchThreads);
+    if (decodePool && prefillPool) llama_attach_threadpool(context.get(), decodePool, prefillPool);
+    else freePools(); // llama.cpp's own pool remains a valid fallback.
+}
+Json configuration() {
+    return {{"runtime_profile", "android-cpu-repack-cache-v2"}, {"cpu_backend_library", selectedCpuLibrary},
+            {"threads", threads}, {"batch_threads", batchThreads}, {"cpu_repack", true},
+            {"persistent_threadpool", decodePool != nullptr && prefillPool != nullptr}};
+}
 // Normalize over the entire vocabulary, before any top-k/diversity filtering.
 double logNormalizer(const std::vector<float> &values) {
     const double highest = *std::max_element(values.begin(), values.end());
@@ -108,11 +135,11 @@ bool phraseDone(const std::string &text, int maxChars) {
     }
     return charCount(text) >= static_cast<size_t>(maxChars);
 }
-void clear() {
-    cachedPrompt.clear(); cachedState.clear(); cachedLogits.clear();
+void clearLiveState() {
     if (context) llama_memory_clear(llama_get_memory(context.get()), true);
 }
-void release() { clear(); context.reset(); model.reset(); loadedPath.clear(); }
+void clear() { cachedPrompt.clear(); cachedState.clear(); cachedLogits.clear(); clearLiveState(); }
+void release() { clear(); freePools(); context.reset(); model.reset(); loadedPath.clear(); }
 jbyteArray result(JNIEnv *env, const Json &data) {
     const auto value = data.dump(-1, ' ', false, Json::error_handler_t::replace);
     auto output = env->NewByteArray(static_cast<jsize>(value.size()));
@@ -127,22 +154,29 @@ Java_org_fcitx_fcitx5_android_completion_QwenNative_load(JNIEnv *env, jobject, j
     const char *chars = env->GetStringUTFChars(path, nullptr);
     const std::string requested(chars); env->ReleaseStringUTFChars(path, chars);
     const auto start = Clock::now();
-    if (model && context && loadedPath == requested) return result(env, {{"state", "ready"}, {"load_ms", 0}, {"reused_model", true}});
+    if (model && context && loadedPath == requested) {
+        auto out = configuration(); out.update({{"state", "ready"}, {"load_ms", 0}, {"reused_model", true}});
+        return result(env, out);
+    }
     release();
-    static std::once_flag backend;
-    std::call_once(backend, [] { llama_backend_init(); });
-    auto mp = llama_model_default_params(); mp.n_gpu_layers = 0; mp.load_mode = LLAMA_LOAD_MODE_MMAP;
     try {
+        feinianyu::ensureCpuBackend();
+        selectedCpuLibrary = feinianyu::cpuBackendLibrary();
+        auto mp = llama_model_default_params(); mp.n_gpu_layers = 0; mp.load_mode = LLAMA_LOAD_MODE_MMAP;
+        mp.use_extra_bufts = true;
         model.reset(llama_model_load_from_file(requested.c_str(), mp));
         if (!model) throw std::runtime_error("模型加载失败");
         auto cp = llama_context_default_params();
         cp.n_ctx = 1024 * candidateLimit; cp.n_batch = 256; cp.n_ubatch = 256; cp.n_seq_max = candidateLimit;
         cp.kv_unified = true; // Share the prompt KV pages across the three continuations.
-        cp.n_threads = 2; cp.n_threads_batch = 2; cp.offload_kqv = false; cp.op_offload = false;
+        cp.n_threads = threads; cp.n_threads_batch = batchThreads; cp.offload_kqv = false; cp.op_offload = false;
         context.reset(llama_init_from_model(model.get(), cp));
         if (!context) throw std::runtime_error("无法创建推理上下文");
+        configurePools();
         loadedPath = requested;
-        return result(env, {{"state", "ready"}, {"load_ms", ms(start)}, {"reused_model", false}});
+        auto out = configuration(); out.update({{"state", "ready"}, {"load_ms", ms(start)}, {"reused_model", false}});
+        out["cpu_features"] = llama_print_system_info();
+        return result(env, out);
     } catch (const std::exception &e) {
         release(); return result(env, {{"state", "error"}, {"load_ms", ms(start)}, {"error", e.what()}});
     }
@@ -158,15 +192,40 @@ Java_org_fcitx_fcitx5_android_completion_QwenNative_reset(JNIEnv *, jobject) { s
 extern "C" JNIEXPORT void JNICALL
 Java_org_fcitx_fcitx5_android_completion_QwenNative_unload(JNIEnv *, jobject) { std::lock_guard<std::mutex> lock(worker); release(); }
 
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_completion_QwenNative_configureThreads(JNIEnv *, jobject, jint decode, jint prefill) {
+    std::lock_guard<std::mutex> lock(worker);
+    const auto d = std::clamp(static_cast<int>(decode), 1, 4), p = std::clamp(static_cast<int>(prefill), 1, 4);
+    if (threads != d || batchThreads != p) { threads = d; batchThreads = p; configurePools(); }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_org_fcitx_fcitx5_android_completion_QwenNative_runtimeInfo(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> lock(worker);
+    try {
+        selectedCpuLibrary = feinianyu::cpuBackendLibrary();
+        auto out = configuration(); out["cpu_features"] = llama_print_system_info();
+        out["model_loaded"] = context != nullptr; out["cached_prompt_tokens"] = cachedPrompt.size();
+        out["cached_state_bytes"] = cachedState.size(); return result(env, out);
+    } catch (...) { return result(env, {{"state", "error"}, {"error", "cpu_backend_unavailable"}}); }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_org_fcitx_fcitx5_android_completion_QwenNative_executionState(JNIEnv *env, jobject) {
+    return result(env, {{"request_id", runningRequest.load()}, {"phase", runningPhase.load()}});
+}
+
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_org_fcitx_fcitx5_android_completion_QwenNative_generate(JNIEnv *env, jobject, jbyteArray input, jlong id, jint maxTokens, jint budgetMs,
     jdouble minRoot, jdouble minToken, jdouble relativeRoot, jint maxChars, jint minChars, jdouble minSingle) {
     std::lock_guard<std::mutex> lock(worker);
     const auto start = Clock::now();
-    Json out = {{"state", "error"}, {"prompt_tokens", 0}, {"generated_tokens", 0}, {"reused_tokens", 0},
+    auto out = configuration();
+    out.update({{"state", "error"}, {"prompt_tokens", 0}, {"generated_tokens", 0}, {"reused_tokens", 0},
                 {"prefill_ms", 0}, {"first_token_ms", nullptr}, {"decode_ms", 0}, {"native_ms", 0},
+                {"cache_restore_ms", 0}, {"cache_save_ms", 0},
                 {"candidate_count", 0}, {"requested_candidates", candidateLimit}, {"candidates", Json::array()},
-                {"candidate_scores", Json::array()}, {"text", ""}};
+                {"candidate_scores", Json::array()}, {"text", ""}});
     minRoot = std::clamp(minRoot, 0.0, 1.0); minToken = std::clamp(minToken, 0.0, 1.0);
     relativeRoot = std::clamp(relativeRoot, 0.0, 1.0); minSingle = std::clamp(minSingle, 0.0, 1.0);
     maxChars = std::clamp(static_cast<int>(maxChars), 2, 12);
@@ -178,7 +237,13 @@ Java_org_fcitx_fcitx5_android_completion_QwenNative_generate(JNIEnv *env, jobjec
     auto finish = [&]() { if (decoding) out["decode_ms"] = ms(decodeStart); out["native_ms"] = ms(start); return result(env, out); };
     if (!context || !model) { out["state"] = "not_ready"; return finish(); }
     Abort abort{id, start + std::chrono::milliseconds(std::max(1, static_cast<int>(budgetMs)))};
-    if (abort.stopped()) { out["state"] = cancelledThrough.load() >= id ? "cancelled" : "timeout"; return finish(); }
+    if (abort.stopped()) {
+        out["state"] = cancelledThrough.load() >= id ? "cancelled" : "timeout";
+        out["cancel_phase"] = "not_started"; out["cache_preserved"] = !cachedState.empty();
+        return finish();
+    }
+    runningRequest.store(id); runningPhase.store(1);
+    struct ProgressGuard { ~ProgressGuard() { runningPhase.store(0); runningRequest.store(0); } } progressGuard;
     llama_set_abort_callback(context.get(), abortDecode, &abort);
     // Remove a pointer to stack memory before returning on any path.
     struct CallbackGuard { ~CallbackGuard() { if (context) llama_set_abort_callback(context.get(), nullptr, nullptr); } } guard;
@@ -199,10 +264,14 @@ Java_org_fcitx_fcitx5_android_completion_QwenNative_generate(JNIEnv *env, jobjec
         // prefill state instead. Reuse only an exact token prefix; changed/truncated prefixes reset.
         if (!cachedPrompt.empty() && cachedPrompt.size() <= tokens.size() &&
             std::equal(cachedPrompt.begin(), cachedPrompt.end(), tokens.begin()) && !cachedState.empty()) {
-            llama_memory_clear(llama_get_memory(context.get()), true);
-            if (llama_state_seq_set_data(context.get(), cachedState.data(), cachedState.size(), 0) > 0) reused = cachedPrompt.size();
+            const auto restoreStart = Clock::now();
+            clearLiveState();
+            if (llama_state_seq_set_data(context.get(), cachedState.data(), cachedState.size(), 0) == cachedState.size()) reused = cachedPrompt.size();
+            else { cachedPrompt.clear(); cachedState.clear(); cachedLogits.clear(); }
+            out["cache_restore_ms"] = ms(restoreStart);
         }
-        if (!reused) clear();
+        // A cancelled decode invalidates live recurrent state, not the last complete host snapshot.
+        if (!reused) clearLiveState();
         out["reused_tokens"] = reused;
         std::vector<float> logits;
         const auto vocabSize = llama_vocab_n_tokens(vocab);
@@ -218,11 +287,15 @@ Java_org_fcitx_fcitx5_android_completion_QwenNative_generate(JNIEnv *env, jobjec
             auto *values = llama_get_logits_ith(context.get(), -1);
             if (!values) throw std::runtime_error("logits");
             logits.assign(values, values + vocabSize);
-            cachedState.resize(llama_state_seq_get_size(context.get(), 0));
-            if (llama_state_seq_get_data(context.get(), cachedState.data(), cachedState.size(), 0) == 0) cachedState.clear();
-            cachedPrompt = tokens; cachedLogits = logits;
+            const auto saveStart = Clock::now();
+            std::vector<uint8_t> saved(llama_state_seq_get_size(context.get(), 0));
+            if (!saved.empty() && llama_state_seq_get_data(context.get(), saved.data(), saved.size(), 0) == saved.size()) {
+                cachedState.swap(saved); cachedPrompt = tokens; cachedLogits = logits;
+            } else { cachedPrompt.clear(); cachedState.clear(); cachedLogits.clear(); }
+            out["cache_save_ms"] = ms(saveStart);
         }
         out["prefill_ms"] = ms(prefillStart);
+        runningPhase.store(2);
         decodeStart = Clock::now(); decoding = true;
 
         const auto initialToken = static_cast<llama_token>(std::max_element(logits.begin(), logits.end()) - logits.begin());
@@ -371,7 +444,11 @@ Java_org_fcitx_fcitx5_android_completion_QwenNative_generate(JNIEnv *env, jobjec
         if (!out["candidates"].empty()) out["text"] = out["candidates"][0];
     } catch (const std::exception &) {
         out["state"] = cancelledThrough.load() >= id ? "cancelled" : Clock::now() >= abort.deadline ? "timeout" : "inference_error";
-        out["text"] = ""; out["candidates"] = Json::array(); out["candidate_scores"] = Json::array(); out["candidate_count"] = 0; clear();
+        out["text"] = ""; out["candidates"] = Json::array(); out["candidate_scores"] = Json::array(); out["candidate_count"] = 0;
+        out["cancel_phase"] = runningPhase.load() == 1 ? "prefill" : "decode";
+        if (out["state"] == "cancelled" || out["state"] == "timeout") clearLiveState();
+        else clear();
+        out["cache_preserved"] = !cachedState.empty();
     }
     return finish();
 }

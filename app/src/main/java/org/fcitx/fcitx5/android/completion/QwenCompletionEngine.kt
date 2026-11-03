@@ -47,7 +47,10 @@ object QwenCompletionEngine {
                 QwenModelStore.refresh(app)
                 val model = QwenModelStore.readyFile(app) ?: return@launch
                 mutableState.value = "loading"
-                val data = withContext(worker) { JSONObject(QwenNative.load(model.absolutePath).toString(Charsets.UTF_8)) }
+                val data = withContext(worker) {
+                    QwenNative.configureThreads(CompletionSettings.decodeThreads(app), CompletionSettings.prefillThreads(app))
+                    JSONObject(QwenNative.load(model.absolutePath).toString(Charsets.UTF_8))
+                }
                 mutableState.value = data.getString("state")
                 CompletionPerf.record(app, data.put("phase", "load"))
                 if (!active) setActive(app, false)
@@ -82,8 +85,10 @@ object QwenCompletionEngine {
         val enqueuedAt = SystemClock.elapsedRealtime()
         return withContext(worker) {
             val queuedAt = SystemClock.elapsedRealtime()
-            val remaining = budgetMs - (queuedAt - enqueuedAt).toInt()
+            var remaining = budgetMs - (queuedAt - enqueuedAt).toInt()
             val result = try {
+                QwenNative.configureThreads(CompletionSettings.decodeThreads(context), CompletionSettings.prefillThreads(context))
+                remaining = budgetMs - (SystemClock.elapsedRealtime() - enqueuedAt).toInt()
                 if (remaining <= 0) JSONObject().put("state", "timeout").put("text", "")
                 else JSONObject(QwenNative.generate(prompt.toByteArray(Charsets.UTF_8), id, 8, remaining,
                     policy.minRoot, policy.minToken, policy.relativeRoot, policy.maxChars, policy.minChars, policy.minSingle).toString(Charsets.UTF_8))
@@ -103,4 +108,7 @@ object QwenCompletionEngine {
         }
     }
     fun clearContext() { scope.launch(worker) { QwenNative.reset() } }
+    suspend fun runtimeInfo(): JSONObject = withContext(worker) {
+        JSONObject(QwenNative.runtimeInfo().toString(Charsets.UTF_8))
+    }
 }

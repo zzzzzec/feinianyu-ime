@@ -12,4 +12,8 @@ import androidx.annotation.Keep
     external fun cancel(requestId: Long)
     external fun reset()
     external fun unload()
+    external fun configureThreads(decode: Int, prefill: Int)
+    external fun runtimeInfo(): ByteArray
+    /** Nonblocking progress only; no prompt, tokens or logits are returned. */
+    external fun executionState(): ByteArray
 }

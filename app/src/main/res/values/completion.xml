@@ -12,6 +12,10 @@
     <string name="completion_context">Previous text</string>
     <string name="completion_budget">Response time limit</string>
     <string name="completion_confidence">Suggestion strength</string>
+    <string name="completion_inference">Inference</string>
+    <string name="completion_decode_threads">Generation threads</string>
+    <string name="completion_prefill_threads">Context processing threads</string>
+    <string name="completion_thread_count">%1$d threads</string>
     <string name="completion_conservative">Conservative</string>
     <string name="completion_balanced">Balanced</string>
     <string name="completion_relaxed">Relaxed</string>

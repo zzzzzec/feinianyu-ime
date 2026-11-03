@@ -15,6 +15,10 @@ object CompletionSettings {
     fun setContextChars(context: Context, value: Int) { prefs(context).edit().putInt("context_chars", value.coerceIn(32, 256)).apply() }
     fun budgetMs(context: Context) = prefs(context).getInt("budget_ms", 800).coerceIn(300, 10000)
     fun setBudgetMs(context: Context, value: Int) { prefs(context).edit().putInt("budget_ms", value.coerceIn(300, 10000)).apply() }
+    fun decodeThreads(context: Context) = prefs(context).getInt("decode_threads", 2).coerceIn(2, 4)
+    fun prefillThreads(context: Context) = prefs(context).getInt("prefill_threads", 2).coerceIn(2, 4)
+    fun setDecodeThreads(context: Context, value: Int) { prefs(context).edit().putInt("decode_threads", value.coerceIn(2, 4)).apply() }
+    fun setPrefillThreads(context: Context, value: Int) { prefs(context).edit().putInt("prefill_threads", value.coerceIn(2, 4)).apply() }
     fun policy(context: Context) = CompletionConfidence.policy(prefs(context).getString("confidence_policy", null))
     fun setPolicy(context: Context, policy: CompletionPolicy) {
         require(policy in CompletionConfidence.policies)

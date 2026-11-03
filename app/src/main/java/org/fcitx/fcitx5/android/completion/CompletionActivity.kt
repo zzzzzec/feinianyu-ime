@@ -61,6 +61,16 @@ class CompletionActivity : SettingsPageActivity() {
             getString(R.string.completion_relaxed)), policies.indexOf(CompletionSettings.policy(this))) {
             CompletionSettings.setPolicy(this, policies[it])
         }.id = R.id.completion_confidence_selector
+        with(content) { section(R.string.completion_inference) }
+        val threads = listOf(2, 3, 4)
+        with(content) { label(getString(R.string.completion_decode_threads)) }
+        spinner(content, threads.map { getString(R.string.completion_thread_count, it) }, threads.indexOf(CompletionSettings.decodeThreads(this))) {
+            if (CompletionSettings.decodeThreads(this) != threads[it]) CompletionSettings.setDecodeThreads(this, threads[it])
+        }
+        with(content) { label(getString(R.string.completion_prefill_threads)) }
+        spinner(content, threads.map { getString(R.string.completion_thread_count, it) }, threads.indexOf(CompletionSettings.prefillThreads(this))) {
+            if (CompletionSettings.prefillThreads(this) != threads[it]) CompletionSettings.setPrefillThreads(this, threads[it])
+        }
         with(content) { section(R.string.completion_try) }
         content.addView(AppCompatEditText(this).apply {
             id = R.id.completion_test_input

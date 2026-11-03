@@ -48,22 +48,28 @@ object CompletionPerf {
             org.fcitx.fcitx5.android.dataset.InputDataset.performance(context, entry)
         } } } // Timing telemetry must never crash the keyboard (e.g. full storage).
     }
-    suspend fun export(context: Context): String = withContext(io) { mutex.withLock {
-        val records = JSONArray()
-        file(context).takeIf { it.isFile }?.useLines { lines -> lines.forEach { line ->
-            runCatching { records.put(JSONObject(line)) }
-        } }
-        JSONObject().put("schema", 1).put("app_version", BuildConfig.VERSION_NAME)
-            .put("build_commit", BuildConfig.BUILD_GIT_HASH)
-            .put("runtime", "llama.cpp-b11632").put("threads", 2)
-            .put("candidate_limit", CompletionText.MAX_SUGGESTIONS).put("generation", "confidence-gated-batched-greedy-v2")
-            .put("routing", "fixed-dictionary-first-v1").put("dictionary_enabled", CompletionSettings.dictionaryEnabled(context))
-            .put("confidence_policy", CompletionSettings.policy(context).name)
-            .put("model_id", QwenModelStore.ID).put("model_sha256", QwenModelStore.SHA256)
-            .put("device", JSONObject().put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL)
-                .put("sdk", Build.VERSION.SDK_INT).put("abi", Build.SUPPORTED_ABIS.firstOrNull())
-                .put("emulator", Build.FINGERPRINT.contains("generic") || Build.PRODUCT.contains("sdk_gphone")))
-            .put("records", records).toString(2)
-    } }
+    suspend fun export(context: Context): String {
+        val runtime = QwenCompletionEngine.runtimeInfo()
+        return withContext(io) {
+            mutex.withLock {
+                val records = JSONArray()
+                file(context).takeIf { it.isFile }?.useLines { lines -> lines.forEach { line ->
+                    runCatching { records.put(JSONObject(line)) }
+                } }
+                JSONObject().put("schema", 1).put("app_version", BuildConfig.VERSION_NAME)
+                    .put("build_commit", BuildConfig.BUILD_GIT_HASH)
+                    .put("runtime", "llama.cpp-b11632").put("threads", CompletionSettings.decodeThreads(context))
+                    .put("batch_threads", CompletionSettings.prefillThreads(context)).put("runtime_metadata", runtime)
+                    .put("candidate_limit", CompletionText.MAX_SUGGESTIONS).put("generation", "confidence-gated-batched-greedy-v2")
+                    .put("routing", "fixed-dictionary-first-v1").put("dictionary_enabled", CompletionSettings.dictionaryEnabled(context))
+                    .put("confidence_policy", CompletionSettings.policy(context).name)
+                    .put("model_id", QwenModelStore.ID).put("model_sha256", QwenModelStore.SHA256)
+                    .put("device", JSONObject().put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL)
+                        .put("sdk", Build.VERSION.SDK_INT).put("abi", Build.SUPPORTED_ABIS.firstOrNull())
+                        .put("emulator", Build.FINGERPRINT.contains("generic") || Build.PRODUCT.contains("sdk_gphone")))
+                    .put("records", records).toString(2)
+            }
+        }
+    }
     suspend fun clear(context: Context) = withContext(io) { mutex.withLock { file(context).delete(); Unit } }
 }

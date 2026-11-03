@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "suzu-reranker.h"
+#include "inference-runtime.h"
 #include "model/suzu_model.h"
 #include <android/log.h>
 #include <algorithm>
@@ -78,7 +79,7 @@ void SuzuReranker::run() {
             configure_ = false; busy_ = true;
             lock.unlock();
             std::string error;
-            try { model = suzu::SuzuModel::load(options, &error); }
+            try { feinianyu::ensureCpuBackend(); model = suzu::SuzuModel::load(options, &error); }
             catch (...) { model.reset(); }
             lock.lock();
             state_ = model ? "ready" : "error"; busy_ = false;

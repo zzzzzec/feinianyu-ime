@@ -1,0 +1,13 @@
+KleidiAI v1.31.0
+https://github.com/ARM-software/kleidiai/releases/tag/v1.31.0
+Source SHA-256: a62d13f9d091badfc286bf08cbba116f834cd330ae28ba1c0e48d0c53a7dc333
+
+Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+Copyright 2024,2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+
+Licenses: Apache-2.0 and BSD-3-Clause; see the adjacent license files.

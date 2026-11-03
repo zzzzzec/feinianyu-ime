@@ -12,6 +12,10 @@
     <string name="completion_context">前文长度</string>
     <string name="completion_budget">响应时限</string>
     <string name="completion_confidence">建议强度</string>
+    <string name="completion_inference">推理性能</string>
+    <string name="completion_decode_threads">生成线程数</string>
+    <string name="completion_prefill_threads">前文处理线程数</string>
+    <string name="completion_thread_count">%1$d 线程</string>
     <string name="completion_conservative">保守</string>
     <string name="completion_balanced">均衡</string>
     <string name="completion_relaxed">宽松</string>

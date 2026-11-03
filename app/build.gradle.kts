@@ -26,22 +26,8 @@ android {
         buildConfigField("String", "UPDATE_REPOSITORY", "\"zzzzzec/feinianyu-ime\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        @Suppress("UnstableApiUsage")
-        externalNativeBuild {
-            cmake {
-                targets(
-                    // jni
-                    "native-lib",
-                    "qwen-completion",
-                    // copy fcitx5 built-in addon libraries
-                    "copy-fcitx5-modules",
-                    // android specific modules
-                    "androidfrontend",
-                    "androidkeyboard",
-                    "androidnotification"
-                )
-            }
-        }
+        // Package all CMake shared/module libraries, including CPU backends loaded with dlopen.
+        // A targets allowlist omits those modules because they are not DT_NEEDED dependencies.
     }
 
     buildFeatures {

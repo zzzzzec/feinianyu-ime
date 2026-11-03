@@ -129,7 +129,10 @@ std::unique_ptr<SuzuModel> SuzuModel::load(const ModelOptions & opt, std::string
         // llama.cpp 不给线程池时，每次解码都临时创建并回收 n_threads 个线程；常驻的线程池省掉这笔开销与调度抖动
         ggml_threadpool_params tp = ggml_threadpool_params_default(opt.n_threads);
         tp.poll = (uint32_t)std::max(0, std::min(100, opt.poll));
-        self->pool_ = ggml_threadpool_new(&tp);
+        const auto device = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+        const auto reg = device ? ggml_backend_dev_backend_reg(device) : nullptr;
+        const auto create_pool = reg ? reinterpret_cast<decltype(ggml_threadpool_new) *>(ggml_backend_reg_get_proc_address(reg, "ggml_threadpool_new")) : nullptr;
+        self->pool_ = create_pool ? create_pool(&tp) : nullptr;
         if (self->pool_) llama_attach_threadpool(self->ctx_, self->pool_, self->pool_);
     }
 
@@ -144,7 +147,12 @@ SuzuModel::~SuzuModel() {
         if (pool_) llama_detach_threadpool(ctx_);
         llama_free(ctx_);
     }
-    if (pool_) ggml_threadpool_free(pool_);
+    if (pool_) {
+        const auto device = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+        const auto reg = device ? ggml_backend_dev_backend_reg(device) : nullptr;
+        const auto free_pool = reg ? reinterpret_cast<decltype(ggml_threadpool_free) *>(ggml_backend_reg_get_proc_address(reg, "ggml_threadpool_free")) : nullptr;
+        if (free_pool) free_pool(pool_);
+    }
     if (model_) llama_model_free(model_);
 }
 
