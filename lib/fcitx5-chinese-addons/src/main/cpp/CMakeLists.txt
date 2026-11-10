@@ -56,5 +56,29 @@ option(ENABLE_CLOUDPINYIN "" OFF)
 # prefer OpenCC_DIR rather than fcitx5-chinese-addons/cmake/FindOpenCC.cmake
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 add_subdirectory(fcitx5-chinese-addons)
+
+# Add the Android-only correction hook to a generated copy of the pinned addon.
+set(pinyin_source_dir "${CMAKE_CURRENT_SOURCE_DIR}/fcitx5-chinese-addons/im/pinyin")
+set(pinyin_source "${pinyin_source_dir}/pinyin.cpp")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${pinyin_source}")
+file(READ "${pinyin_source}" pinyin_code)
+set(correction_anchor "        inputPanel.setCandidateList(std::move(candidateList));\n    } while (0);")
+string(FIND "${pinyin_code}" "${correction_anchor}" correction_position)
+if(correction_position EQUAL -1)
+    message(FATAL_ERROR "Pinyin candidate construction changed. Review the Android correction hook.")
+endif()
+string(REPLACE "${correction_anchor}"
+    "        inputPanel.setCandidateList(std::move(candidateList));\n        addTypingCorrections(*this, *inputContext, context, inputPanel.candidateList());\n    } while (0);"
+    pinyin_code "${pinyin_code}")
+string(REPLACE "#include \"pinyin.h\"" "#include \"pinyin.h\"\n#include \"typing-correction.h\""
+    pinyin_code "${pinyin_code}")
+set(pinyin_android_source "${CMAKE_CURRENT_BINARY_DIR}/pinyin-android.cpp")
+file(CONFIGURE OUTPUT "${pinyin_android_source}" CONTENT "${pinyin_code}" @ONLY)
+get_target_property(pinyin_sources pinyin SOURCES)
+list(REMOVE_ITEM pinyin_sources "pinyin.cpp")
+set_property(TARGET pinyin PROPERTY SOURCES "${pinyin_sources}")
+target_sources(pinyin PRIVATE "${pinyin_android_source}" "${CMAKE_CURRENT_SOURCE_DIR}/typing-correction.cpp")
+target_include_directories(pinyin PRIVATE "${pinyin_source_dir}" "${CMAKE_CURRENT_SOURCE_DIR}")
+
 # rename to include executable in apk
 set_target_properties(scel2org5 PROPERTIES OUTPUT_NAME libscel2org5.so)

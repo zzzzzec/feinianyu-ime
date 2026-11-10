@@ -326,6 +326,8 @@ AndroidFrontend::AndroidFrontend(Instance *instance)
           icCache_(),
           eventHandlers_(),
           pagingMode_(0) {
+    instance_->inputContextManager().registerProperty(SupplementalCorrectionSlots::name,
+                                                      &correctionSlots_);
     eventHandlers_.emplace_back(instance_->watchEvent(
             EventType::InputContextInputMethodActivated,
             EventWatcherPhase::Default,
@@ -453,25 +455,40 @@ void AndroidFrontend::rerankCandidates() {
     if (!common || common->currentPage() != 0 || common->totalSize() < 2 ||
         common->originSize() != static_cast<size_t>(common->totalSize())) { finish("unsupported_list"); return; }
     rankedList_ = list;
-    const int count = std::min(10, common->totalSize());
     auto word = [&](int i) { return common->candidateFromAll(i).text().toStringForCommit(); };
     const auto leader = word(0);
     const auto length = utf8::lengthValidated(leader);
     if (length < 1 || length > 12) { finish("unsupported_length"); return; }
+    const auto hasTrace = [&](int position) {
+        return capture && static_cast<size_t>(position) < trace.candidates.size();
+    };
     std::vector<int> positions;
+    std::vector<int> engineRanks;
     std::vector<std::string> words;
-    for (int i = 0; i < count; ++i) {
+    int count = 0;
+    int engineRank = 0;
+    const auto *slots = activeIC_->propertyFor(&correctionSlots_);
+    const int supplementalCount = slots && slots->list.lock() == list ? slots->count : 0;
+    // Supplemental corrections occupy display slots but do not displace the
+    // original candidates from Suzu's scoring window or alter their prior.
+    for (; count < common->totalSize() && engineRank < 10; ++count) {
+        const int i = count;
+        if (i > 0 && i <= supplementalCount) continue;
+        const int rank = engineRank++;
         auto text = word(i);
         if (utf8::lengthValidated(text) != length) {
-            if (capture) trace.candidates[i].excluded = "different_length";
+            if (hasTrace(i)) trace.candidates[i].excluded = "different_length";
             continue;
         }
         bool chinese = true;
         for (auto cp : utf8::MakeUTF8CharRange(text)) {
             if (cp < 0x3400 || cp > 0x9fff) { chinese = false; break; }
         }
-        if (chinese) { positions.push_back(i); words.push_back(std::move(text)); }
-        else if (capture) trace.candidates[i].excluded = "not_chinese";
+        if (chinese) {
+            positions.push_back(i);
+            engineRanks.push_back(rank);
+            words.push_back(std::move(text));
+        } else if (hasTrace(i)) trace.candidates[i].excluded = "not_chinese";
     }
     if (positions.size() < 2 || positions.front() != 0) { finish("few_comparable_candidates"); return; }
     std::vector<double> scores;
@@ -481,7 +498,9 @@ void AndroidFrontend::rerankCandidates() {
     if (info.modelMs >= 0) trace.modelMs = info.modelMs;
     if (!scored) {
         if (capture) for (int index : info.unknownCandidates) {
-            if (index >= 0 && index < static_cast<int>(positions.size())) trace.candidates[positions[index]].excluded = "out_of_vocab";
+            if (index >= 0 && index < static_cast<int>(positions.size()) && hasTrace(positions[index])) {
+                trace.candidates[positions[index]].excluded = "out_of_vocab";
+            }
         }
         finish(info.reason); return;
     }
@@ -490,13 +509,14 @@ void AndroidFrontend::rerankCandidates() {
     std::iota(order.begin(), order.end(), 0);
     for (double score : scores) if (!std::isfinite(score)) { finish("nonfinite_score"); return; }
     for (size_t i = 0; i < scores.size(); ++i) {
-        if (capture) {
+        const double penalty = 0.3 * engineRanks[i];
+        if (hasTrace(positions[i])) {
             auto &candidate = trace.candidates[positions[i]];
             candidate.rawScore = scores[i];
-            candidate.rankPenalty = 0.3 * positions[i];
-            candidate.finalScore = scores[i] - 0.3 * positions[i];
+            candidate.rankPenalty = penalty;
+            candidate.finalScore = scores[i] - penalty;
         }
-        scores[i] -= 0.3 * positions[i];
+        scores[i] -= penalty;
     }
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return scores[a] > scores[b]; });
     if (scores[order.front()] < scores[0] + 2.5) {

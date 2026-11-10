@@ -15,6 +15,7 @@
 #include "inputcontextcache.h"
 #include "../suzu/suzu-reranker.h"
 #include "ranking-diagnostics.h"
+#include "typing-correction.h"
 #include <unordered_map>
 
 namespace fcitx {
@@ -129,6 +130,7 @@ private:
     RankingDiagnostics diagnostics_;
     std::weak_ptr<CandidateList> diagnosedList_;
     std::weak_ptr<CandidateList> rankedList_;
+    SimpleInputContextPropertyFactory<SupplementalCorrectionSlots> correctionSlots_;
     unsigned suzuReorders_ = 0;
 
     bool recordingAllowed() const;
